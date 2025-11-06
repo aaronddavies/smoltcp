@@ -537,6 +537,14 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
         let data = self.buffer.as_mut();
         &mut data[range]
     }
+
+    /// Return a mutable pointer to the payload.
+    #[inline]
+    pub fn options_mut(&mut self) -> &mut [u8] {
+        let range = (self.header_len() - IPV4_HEADER_LEN)..self.header_len();
+        let data = self.buffer.as_mut();
+        &mut data[range]
+    }
 }
 
 impl<T: AsRef<[u8]>> AsRef<[u8]> for Packet<T> {
@@ -801,6 +809,41 @@ pub(crate) mod test {
         packet.fill_checksum();
         packet.payload_mut().copy_from_slice(&PAYLOAD_BYTES[..]);
         assert_eq!(&*packet.into_inner(), &PACKET_BYTES[..]);
+    }
+
+    #[test]
+    fn test_construct_with_option() {
+        const OPTION_PACKET_BYTES: [u8; 34] = [
+            0x46, 0x21, 0x00, 0x1e, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xd5, 0x4d, 0x11, 0x12, 0x13,
+            0x14, 0x21, 0x22, 0x23, 0x24,  // Fixed header
+            0x88, 0x02, 0x5a, 0x5a,  // Stream Identifier option
+            0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,  // Payload
+        ];
+
+        const OPTION_BYTES: [u8; 4] = [0x88, 0x02, 0x5a, 0x5a];
+
+        const OPTION_PAYLOAD_BYTES: [u8; 10] = [0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff];
+
+        let mut bytes = vec![0xa5; 34];
+        let mut packet = crate::wire::ipv4::Packet::new_unchecked(&mut bytes);
+        packet.set_version(4);
+        packet.set_header_len(24);
+        packet.clear_flags();
+        packet.set_dscp(8);
+        packet.set_ecn(1);
+        packet.set_total_len(30);
+        packet.set_ident(0x102);
+        packet.set_more_frags(true);
+        packet.set_dont_frag(true);
+        packet.set_frag_offset(0x203 * 8);
+        packet.set_hop_limit(0x1a);
+        packet.set_next_header(Protocol::Icmp);
+        packet.set_src_addr(Address::new(0x11, 0x12, 0x13, 0x14));
+        packet.set_dst_addr(Address::new(0x21, 0x22, 0x23, 0x24));
+        packet.fill_checksum();
+        packet.options_mut().copy_from_slice(&OPTION_BYTES[..]);
+        packet.payload_mut().copy_from_slice(&PAYLOAD_BYTES[..]);
+        assert_eq!(&*packet.into_inner(), &OPTION_PACKET_BYTES[..]);
     }
 
     #[test]
