@@ -924,6 +924,26 @@ pub(crate) mod test {
     }
 
     #[test]
+    fn test_parse_with_option() {
+        let packet = Packet::new_unchecked(&OPTION_PACKET_BYTES[..]);
+        let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+        assert_eq!(repr, Repr {
+            src_addr: Address::new(0x11, 0x12, 0x13, 0x14),
+            dst_addr: Address::new(0x21, 0x22, 0x23, 0x24),
+            next_header: Protocol::Icmp,
+            payload_len: 10,
+            header_len: HEADER_LEN + 4,
+            dscp: 8,
+            ecn: 1,
+            ident: 0x102,
+            dont_frag: true,
+            more_frags: true,
+            frag_offset: 0x203 * 8,
+            hop_limit: 0x1a,
+        });
+    }
+
+    #[test]
     fn test_parse_bad_version() {
         let mut bytes = vec![0; 24];
         bytes.copy_from_slice(&REPR_PACKET_BYTES[..]);
