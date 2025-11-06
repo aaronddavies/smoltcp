@@ -142,8 +142,11 @@ impl InterfaceInner {
             }
         };
 
-        let ip_options = ipv4_packet.options();
-
+        let options_size = ipv4_packet.header_len() - IPV4_HEADER_LEN;
+        let ip_options = match options_size {
+            0 => None,
+            _ => Some(ipv4_packet.options())
+        };
         #[cfg(not(feature = "proto-ipv4-fragmentation"))]
         let ip_payload = ipv4_packet.payload();
 
