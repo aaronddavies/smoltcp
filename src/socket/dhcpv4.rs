@@ -6,8 +6,8 @@ use crate::time::{Duration, Instant};
 use crate::wire::dhcpv4::field as dhcpv4_field;
 use crate::wire::{
     DHCP_CLIENT_PORT, DHCP_MAX_DNS_SERVER_COUNT, DHCP_SERVER_PORT, DhcpMessageType, DhcpPacket,
-    DhcpRepr, IpAddress, IpProtocol, Ipv4Address, Ipv4AddressExt, Ipv4Cidr, Ipv4Repr,
-    UDP_HEADER_LEN, UdpRepr,
+    DhcpRepr, IpAddress, IpProtocol, Ipv4Address, Ipv4AddressExt, Ipv4Cidr, Ipv4Repr, 
+    UDP_HEADER_LEN, UdpRepr, IPV4_HEADER_LEN
 };
 use crate::wire::{DhcpOption, HardwareAddress};
 use heapless::Vec;
@@ -610,6 +610,7 @@ impl<'a> Socket<'a> {
             src_addr: Ipv4Address::UNSPECIFIED,
             dst_addr: Ipv4Address::BROADCAST,
             next_header: IpProtocol::Udp,
+            header_len: IPV4_HEADER_LEN,
             payload_len: 0, // filled right before emit
             dscp: 0,
             ecn: 0,
@@ -802,7 +803,7 @@ mod test {
     use std::ops::{Deref, DerefMut};
 
     use super::*;
-    use crate::wire::EthernetAddress;
+    use crate::wire::{EthernetAddress, IPV4_HEADER_LEN};
 
     // =========================================================================================//
     // Helper functions
@@ -915,6 +916,7 @@ mod test {
         src_addr: Ipv4Address::UNSPECIFIED,
         dst_addr: Ipv4Address::BROADCAST,
         next_header: IpProtocol::Udp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 0,
         dscp: 0,
         ecn: 0,
@@ -929,6 +931,7 @@ mod test {
         src_addr: MY_IP,
         dst_addr: Ipv4Address::BROADCAST,
         next_header: IpProtocol::Udp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 0,
         dscp: 0,
         ecn: 0,
@@ -943,6 +946,7 @@ mod test {
         src_addr: SERVER_IP,
         dst_addr: Ipv4Address::BROADCAST,
         next_header: IpProtocol::Udp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 0,
         dscp: 0,
         ecn: 0,
@@ -957,6 +961,7 @@ mod test {
         src_addr: SERVER_IP,
         dst_addr: MY_IP,
         next_header: IpProtocol::Udp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 0,
         dscp: 0,
         ecn: 0,
@@ -971,6 +976,7 @@ mod test {
         src_addr: MY_IP,
         dst_addr: SERVER_IP,
         next_header: IpProtocol::Udp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 0,
         dscp: 0,
         ecn: 0,

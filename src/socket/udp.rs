@@ -606,7 +606,7 @@ impl<'a> Socket<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::wire::{IpRepr, UdpRepr};
+    use crate::wire::{IpRepr, UdpRepr, IPV4_HEADER_LEN};
 
     use crate::phy::Medium;
     use crate::tests::setup;
@@ -681,6 +681,7 @@ mod test {
         src_addr: LOCAL_ADDR,
         dst_addr: REMOTE_ADDR,
         next_header: IpProtocol::Udp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 8 + 6,
         dscp: 0,
         ecn: 0,
@@ -695,6 +696,7 @@ mod test {
         src_addr: REMOTE_ADDR,
         dst_addr: LOCAL_ADDR,
         next_header: IpProtocol::Udp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 8 + 6,
         dscp: 0,
         ecn: 0,
@@ -709,6 +711,7 @@ mod test {
         src_addr: REMOTE_ADDR,
         dst_addr: OTHER_ADDR,
         next_header: IpProtocol::Udp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 8 + 6,
         dscp: 0,
         ecn: 0,
@@ -1005,6 +1008,7 @@ mod test {
                         src_addr: LOCAL_ADDR,
                         dst_addr: REMOTE_ADDR,
                         next_header: IpProtocol::Udp,
+                        header_len: IPV4_HEADER_LEN,
                         payload_len: 8 + 6,
                         dscp: 0,
                         ecn: 0,

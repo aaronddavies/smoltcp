@@ -1,7 +1,7 @@
 use core::convert::From;
 use core::fmt;
 
-use super::{Error, Result};
+use super::{Error, Result, IPV4_HEADER_LEN};
 use crate::phy::ChecksumCapabilities;
 #[cfg(feature = "proto-ipv4")]
 use crate::wire::{Ipv4Address, Ipv4AddressExt, Ipv4Cidr, Ipv4Packet, Ipv4Repr};
@@ -607,6 +607,7 @@ impl Repr {
                 dst_addr,
                 next_header,
                 payload_len,
+                header_len: IPV4_HEADER_LEN,
                 dscp: 0,
                 ecn: 0,
                 ident: 0,
@@ -1067,6 +1068,7 @@ pub(crate) mod test {
             src_addr: crate::wire::ipv4::Address::new(0x11, 0x12, 0x13, 0x14),
             dst_addr: crate::wire::ipv4::Address::new(0x21, 0x22, 0x23, 0x24),
             next_header: Protocol::Icmp,
+            header_len: IPV4_HEADER_LEN,
             payload_len: 0,
             dscp: 0,
             ecn: 0,

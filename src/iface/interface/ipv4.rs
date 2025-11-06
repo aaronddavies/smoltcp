@@ -142,13 +142,15 @@ impl InterfaceInner {
             }
         };
 
+        let ip_options = ipv4_packet.options();
+
         #[cfg(not(feature = "proto-ipv4-fragmentation"))]
         let ip_payload = ipv4_packet.payload();
 
         let ip_repr = IpRepr::Ipv4(ipv4_repr);
 
         #[cfg(feature = "socket-raw")]
-        let handled_by_raw_socket = self.raw_socket_filter(sockets, &ip_repr, ip_payload);
+        let handled_by_raw_socket = self.raw_socket_filter(sockets, &ip_repr, ip_payload, ip_options);
         #[cfg(not(feature = "socket-raw"))]
         let handled_by_raw_socket = false;
 
@@ -386,6 +388,7 @@ impl InterfaceInner {
                 src_addr: ipv4_repr.dst_addr,
                 dst_addr: ipv4_repr.src_addr,
                 next_header: IpProtocol::Icmp,
+                header_len: IPV4_HEADER_LEN,
                 payload_len: icmp_repr.buffer_len(),
                 dscp: 0,
                 ecn: 0,
@@ -408,6 +411,7 @@ impl InterfaceInner {
                             src_addr,
                             dst_addr: ipv4_repr.src_addr,
                             next_header: IpProtocol::Icmp,
+                            header_len: IPV4_HEADER_LEN,
                             payload_len: icmp_repr.buffer_len(),
                             dscp: 0,
                             ecn: 0,

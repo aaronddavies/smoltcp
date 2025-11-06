@@ -221,6 +221,7 @@ mod tests {
         phy::{Device, Loopback, RxToken, TxToken},
         time::Instant,
     };
+    use crate::wire::IPV4_HEADER_LEN;
 
     #[cfg(any(
         feature = "medium-ethernet",
@@ -331,6 +332,7 @@ mod tests {
             src_addr: Ipv4Address::new(10, 0, 0, 1),
             dst_addr: Ipv4Address::new(10, 0, 0, 2),
             next_header: IpProtocol::Unknown(255),
+            header_len: IPV4_HEADER_LEN,
             payload_len: 0,
             dscp: 0,
             ecn: 0,

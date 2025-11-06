@@ -2728,7 +2728,7 @@ impl<'a> fmt::Write for Socket<'a> {
 #[cfg(all(test, feature = "medium-ip"))]
 mod test {
     use super::*;
-    use crate::wire::IpRepr;
+    use crate::wire::{IpRepr, IPV4_HEADER_LEN};
     use std::ops::{Deref, DerefMut};
     use std::vec::Vec;
 
@@ -2795,6 +2795,7 @@ mod test {
         src_addr: LOCAL_ADDR,
         dst_addr: REMOTE_ADDR,
         next_header: IpProtocol::Tcp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 20,
         dscp: 0,
         ecn: 0,
@@ -2822,6 +2823,7 @@ mod test {
         src_addr: LOCAL_ADDR,
         dst_addr: REMOTE_ADDR,
         next_header: IpProtocol::Tcp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 20,
         dscp: 0,
         ecn: 0,
@@ -2880,6 +2882,7 @@ mod test {
             src_addr: REMOTE_ADDR,
             dst_addr: LOCAL_ADDR,
             next_header: IpProtocol::Tcp,
+            header_len: IPV4_HEADER_LEN,
             payload_len: repr.buffer_len(),
             dscp: 0,
             ecn: 0,
@@ -8533,6 +8536,7 @@ mod test {
             src_addr: REMOTE_ADDR,
             dst_addr: LOCAL_ADDR,
             next_header: IpProtocol::Tcp,
+            header_len: IPV4_HEADER_LEN,
             payload_len: tcp_repr.buffer_len(),
             dscp: 0,
             ecn: 0,
@@ -8548,6 +8552,7 @@ mod test {
             src_addr: OTHER_ADDR,
             dst_addr: LOCAL_ADDR,
             next_header: IpProtocol::Tcp,
+            header_len: IPV4_HEADER_LEN,
             payload_len: tcp_repr.buffer_len(),
             dscp: 0,
             ecn: 0,
@@ -8563,6 +8568,7 @@ mod test {
             src_addr: REMOTE_ADDR,
             dst_addr: OTHER_ADDR,
             next_header: IpProtocol::Tcp,
+            header_len: IPV4_HEADER_LEN,
             payload_len: tcp_repr.buffer_len(),
             dscp: 0,
             ecn: 0,

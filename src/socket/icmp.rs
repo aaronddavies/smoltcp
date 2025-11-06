@@ -8,7 +8,7 @@ use crate::socket::WakerRegistration;
 use crate::socket::{Context, PollAt};
 
 use crate::storage::Empty;
-use crate::wire::IcmpRepr;
+use crate::wire::{IcmpRepr, IPV4_HEADER_LEN};
 #[cfg(feature = "proto-ipv4")]
 use crate::wire::{Icmpv4Packet, Icmpv4Repr, Ipv4Repr};
 #[cfg(feature = "proto-ipv6")]
@@ -597,6 +597,7 @@ impl<'a> Socket<'a> {
                         src_addr,
                         dst_addr,
                         next_header: IpProtocol::Icmp,
+                        header_len: IPV4_HEADER_LEN,
                         payload_len: repr.buffer_len(),
                         dscp: 0,
                         ecn: 0,
@@ -711,6 +712,7 @@ mod test_ipv4 {
         src_addr: LOCAL_IPV4,
         dst_addr: REMOTE_IPV4,
         next_header: IpProtocol::Icmp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 24,
         dscp: 0,
         ecn: 0,
@@ -725,6 +727,7 @@ mod test_ipv4 {
         src_addr: REMOTE_IPV4,
         dst_addr: LOCAL_IPV4,
         next_header: IpProtocol::Icmp,
+        header_len: IPV4_HEADER_LEN,
         payload_len: 24,
         dscp: 0,
         ecn: 0,
@@ -829,6 +832,7 @@ mod test_ipv4 {
                         src_addr: LOCAL_IPV4,
                         dst_addr: REMOTE_IPV4,
                         next_header: IpProtocol::Icmp,
+                        header_len: IPV4_HEADER_LEN,
                         payload_len: ECHOV4_REPR.buffer_len(),
                         dscp: 0,
                         ecn: 0,
@@ -932,6 +936,7 @@ mod test_ipv4 {
                 src_addr: LOCAL_IPV4,
                 dst_addr: REMOTE_IPV4,
                 next_header: IpProtocol::Icmp,
+                header_len: IPV4_HEADER_LEN,
                 payload_len: 12,
                 dscp: 0,
                 ecn: 0,
@@ -947,6 +952,7 @@ mod test_ipv4 {
             src_addr: REMOTE_IPV4,
             dst_addr: LOCAL_IPV4,
             next_header: IpProtocol::Icmp,
+            header_len: IPV4_HEADER_LEN,
             payload_len: icmp_repr.buffer_len(),
             dscp: 0,
             ecn: 0,
