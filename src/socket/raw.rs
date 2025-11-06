@@ -8,11 +8,12 @@ use crate::socket::PollAt;
 use crate::socket::WakerRegistration;
 
 use crate::storage::Empty;
-use crate::wire::{IpProtocol, IpRepr, IpVersion};
+use crate::wire::{IpProtocol, IpRepr, IpVersion, IPV4_HEADER_LEN, IPV6_HEADER_LEN};
 #[cfg(feature = "proto-ipv4")]
 use crate::wire::{Ipv4Packet, Ipv4Repr};
 #[cfg(feature = "proto-ipv6")]
 use crate::wire::{Ipv6Packet, Ipv6Repr};
+use crate::wire::IpVersion::Ipv4;
 
 /// Error returned by [`Socket::bind`]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -371,7 +372,7 @@ impl<'a> Socket<'a> {
         match self.rx_buffer.enqueue(total_len, ()) {
             Ok(buf) => {
                 ip_repr.emit(&mut buf[..header_len], &cx.checksum_caps());
-                buf[header_len..].copy_from_slice(payload);
+               buf[header_len..].copy_from_slice(payload);
             }
             Err(_) => net_trace!(
                 "raw:{:?}:{:?}: buffer full, dropped incoming packet",
@@ -483,7 +484,7 @@ mod test {
     use rstest::*;
 
     use super::*;
-    use crate::wire::IpRepr;
+    use crate::wire::{IpRepr, IPV4_HEADER_LEN};
     #[cfg(feature = "proto-ipv4")]
     use crate::wire::{Ipv4Address, Ipv4Repr};
     #[cfg(feature = "proto-ipv6")]
@@ -495,6 +496,7 @@ mod test {
 
     #[cfg(feature = "proto-ipv4")]
     mod ipv4_locals {
+        use crate::wire::IPV4_HEADER_LEN;
         use super::*;
 
         pub fn socket(
@@ -514,6 +516,7 @@ mod test {
             src_addr: Ipv4Address::new(10, 0, 0, 1),
             dst_addr: Ipv4Address::new(10, 0, 0, 2),
             next_header: IpProtocol::Unknown(IP_PROTO),
+            header_len: IPV4_HEADER_LEN,
             payload_len: 4,
             dscp: 0,
             ecn: 0,
@@ -935,6 +938,7 @@ mod test {
                 src_addr: Ipv4Address::new(10, 0, 0, 1),
                 dst_addr: Ipv4Address::new(10, 0, 0, 2),
                 next_header: proto,
+                header_len: IPV4_HEADER_LEN,
                 payload_len: 4,
                 dscp: 0,
                 ecn: 0,

@@ -51,6 +51,7 @@ let repr = Ipv4Repr {
     src_addr:    Ipv4Address::new(10, 0, 0, 1),
     dst_addr:    Ipv4Address::new(10, 0, 0, 2),
     next_header: IpProtocol::Tcp,
+    header_len: IPV4_HEADER_LEN,
     payload_len: 10,
     dscp: 0,
     ecn: 0,

@@ -1,7 +1,7 @@
 use byteorder::{ByteOrder, NetworkEndian};
 use core::fmt;
 
-use super::{Error, Result};
+use super::{Error, Result, IPV4_HEADER_LEN};
 use crate::phy::ChecksumCapabilities;
 use crate::wire::ip::{checksum, pretty_print_ip_payload};
 
@@ -279,9 +279,9 @@ impl<T: AsRef<[u8]>> Packet<T> {
 
     /// Return the header length, in octets.
     #[inline]
-    pub fn header_len(&self) -> u8 {
+    pub fn header_len(&self) -> usize {
         let data = self.buffer.as_ref();
-        (data[field::VER_IHL] & 0x0f) * 4
+        ((data[field::VER_IHL] & 0x0f) * 4) as usize
     }
 
     /// Return the Differential Services Code Point field.
@@ -544,6 +544,7 @@ pub struct Repr {
     pub src_addr: Address,
     pub dst_addr: Address,
     pub next_header: Protocol,
+    pub header_len: usize,
     pub payload_len: usize,
     pub dscp: u8,
     pub ecn: u8,
@@ -585,6 +586,7 @@ impl Repr {
             src_addr: packet.src_addr(),
             dst_addr: packet.dst_addr(),
             next_header: packet.next_header(),
+            header_len: packet.header_len() as usize,
             payload_len,
             dscp: packet.dscp(),
             ecn: packet.ecn(),
@@ -598,8 +600,7 @@ impl Repr {
 
     /// Return the length of a header that will be emitted from this high-level representation.
     pub const fn buffer_len(&self) -> usize {
-        // We never emit any options.
-        field::DST_ADDR.end
+        self.header_len
     }
 
     /// Emit a high-level representation into an Internet Protocol version 4 packet.
@@ -609,7 +610,7 @@ impl Repr {
         checksum_caps: &ChecksumCapabilities,
     ) {
         packet.set_version(4);
-        packet.set_header_len(field::DST_ADDR.end as u8);
+        packet.set_header_len(self.header_len as u8);
         packet.set_dscp(self.dscp);
         packet.set_ecn(self.ecn);
         let total_len = packet.header_len() as u16 + self.payload_len as u16;
@@ -651,7 +652,7 @@ impl<T: AsRef<[u8]> + ?Sized> fmt::Display for Packet<&T> {
                 if self.version() != 4 {
                     write!(f, " ver={}", self.version())?;
                 }
-                if self.header_len() != 20 {
+                if self.header_len() < 20 {
                     write!(f, " hlen={}", self.header_len())?;
                 }
                 if self.dscp() != 0 {
@@ -832,6 +833,7 @@ pub(crate) mod test {
             dst_addr: Address::new(0x21, 0x22, 0x23, 0x24),
             next_header: Protocol::Icmp,
             payload_len: 4,
+            header_len: HEADER_LEN,
             dscp: 0,
             ecn: 0,
             ident: 0,
