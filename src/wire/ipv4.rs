@@ -394,7 +394,15 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Packet<&'a T> {
     /// Return a pointer to the payload.
     #[inline]
     pub fn payload(&self) -> &'a [u8] {
-        let range = self.header_len() as usize..self.total_len() as usize;
+        let range = self.header_len()..self.total_len() as usize;
+        let data = self.buffer.as_ref();
+        &data[range]
+    }
+
+    /// Return a pointer to the options.
+    #[inline]
+    pub fn options(&self) -> &'a [u8] {
+        let range = (self.header_len() - IPV4_HEADER_LEN)..self.header_len();
         let data = self.buffer.as_ref();
         &data[range]
     }
