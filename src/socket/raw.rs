@@ -8,12 +8,11 @@ use crate::socket::PollAt;
 use crate::socket::WakerRegistration;
 
 use crate::storage::Empty;
-use crate::wire::{IpProtocol, IpRepr, IpVersion, IPV4_HEADER_LEN, IPV6_HEADER_LEN};
+use crate::wire::{IpProtocol, IpRepr, IpVersion};
 #[cfg(feature = "proto-ipv4")]
 use crate::wire::{Ipv4Packet, Ipv4Repr};
 #[cfg(feature = "proto-ipv6")]
 use crate::wire::{Ipv6Packet, Ipv6Repr};
-use crate::wire::IpVersion::Ipv4;
 
 /// Error returned by [`Socket::bind`]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -489,6 +488,7 @@ mod test {
     use crate::wire::{Ipv4Address, Ipv4Repr};
     #[cfg(feature = "proto-ipv6")]
     use crate::wire::{Ipv6Address, Ipv6Repr};
+    use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
     fn buffer(packets: usize) -> PacketBuffer<'static> {
         PacketBuffer::new(vec![PacketMetadata::EMPTY; packets], vec![0; 48 * packets])
@@ -496,6 +496,7 @@ mod test {
 
     #[cfg(feature = "proto-ipv4")]
     mod ipv4_locals {
+        use crate::wire::ipv4::MAX_OPTIONS_SIZE;
         use crate::wire::IPV4_HEADER_LEN;
         use super::*;
 
@@ -525,6 +526,7 @@ mod test {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
+            options: [0u8; MAX_OPTIONS_SIZE],
         });
         pub const PACKET_BYTES: [u8; 24] = [
             0x45, 0x00, 0x00, 0x18, 0x00, 0x00, 0x40, 0x00, 0x40, 0x3f, 0x00, 0x00, 0x0a, 0x00,
@@ -947,6 +949,7 @@ mod test {
                 more_frags: false,
                 frag_offset: 0,
                 hop_limit: 64,
+                options: [0u8; MAX_OPTIONS_SIZE],
             });
             assert!(socket.accepts(&header_repr));
         }

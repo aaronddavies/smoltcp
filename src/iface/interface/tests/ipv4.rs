@@ -1,3 +1,4 @@
+use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 use super::*;
 
 #[rstest]
@@ -88,6 +89,7 @@ fn test_no_icmp_no_unicast(#[case] medium: Medium) {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 0x40,
+        options: [0u8; MAX_OPTIONS_SIZE],
     });
 
     let mut bytes = vec![0u8; 54];
@@ -133,6 +135,7 @@ fn test_icmp_error_no_payload(#[case] medium: Medium) {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 0x40,
+        options: [0u8; MAX_OPTIONS_SIZE],
     });
 
     let mut bytes = vec![0u8; 34];
@@ -156,6 +159,7 @@ fn test_icmp_error_no_payload(#[case] medium: Medium) {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
+            options: [0u8; MAX_OPTIONS_SIZE],
         },
         data: &NO_BYTES,
     };
@@ -174,6 +178,7 @@ fn test_icmp_error_no_payload(#[case] medium: Medium) {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
+            options: [0u8; MAX_OPTIONS_SIZE],
         },
         IpPayload::Icmpv4(icmp_repr),
     );
@@ -334,6 +339,7 @@ fn test_icmp_error_port_unreachable(#[case] medium: Medium) {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
+        options: [0u8; MAX_OPTIONS_SIZE],
     });
 
     // Emit the representations to a packet
@@ -365,6 +371,7 @@ fn test_icmp_error_port_unreachable(#[case] medium: Medium) {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
+            options: [0u8; MAX_OPTIONS_SIZE],
         },
         data,
     };
@@ -382,6 +389,7 @@ fn test_icmp_error_port_unreachable(#[case] medium: Medium) {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
+            options: [0u8; MAX_OPTIONS_SIZE],
         },
         IpPayload::Icmpv4(icmp_repr),
     );
@@ -408,6 +416,7 @@ fn test_icmp_error_port_unreachable(#[case] medium: Medium) {
         hop_limit: 64,
         dscp: 0,
         ecn: 0,
+        options: [0u8; MAX_OPTIONS_SIZE],
     });
 
     // Emit the representations to a packet
@@ -470,6 +479,7 @@ fn test_handle_ipv4_broadcast(#[case] medium: Medium) {
         header_len: IPV4_HEADER_LEN,
         dscp: 0,
         ecn: 0,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     // Emit to ip frame
@@ -505,6 +515,7 @@ fn test_handle_ipv4_broadcast(#[case] medium: Medium) {
         header_len: IPV4_HEADER_LEN,
         dscp: 0,
         ecn: 0,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
     let expected_packet =
         Packet::new_ipv4(expected_ipv4_repr, IpPayload::Icmpv4(expected_icmpv4_repr));
@@ -743,6 +754,7 @@ fn test_icmpv4_socket(#[case] medium: Medium) {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     // Open a socket and ensure the packet is handled due to the listening
@@ -927,6 +939,7 @@ fn test_packet_len(#[case] medium: Medium) {
             hop_limit: 64,
             dscp: 0,
             ecn: 0,
+            options: [0u8; MAX_OPTIONS_SIZE],
         };
         let udp_repr = UdpRepr {
             src_port: 12345,
@@ -1013,6 +1026,7 @@ fn test_raw_socket_no_reply_udp(#[case] medium: Medium) {
         header_len: IPV4_HEADER_LEN,
         dscp: 0,
         ecn: 0,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     // Emit to frame
@@ -1078,6 +1092,7 @@ fn test_raw_socket_no_reply_tcp(#[case] medium: Medium) {
         header_len: IPV4_HEADER_LEN,
         dscp: 0,
         ecn: 0,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     // Emit to frame
@@ -1172,6 +1187,7 @@ fn test_raw_socket_with_udp_socket(#[case] medium: Medium) {
         header_len: IPV4_HEADER_LEN,
         dscp: 0,
         ecn: 0,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     // Emit to frame
@@ -1276,6 +1292,7 @@ fn test_raw_socket_tx_fragmentation(#[case] medium: Medium) {
             payload_len,
             dscp: 0,
             ecn: 0,
+            options: [0u8; MAX_OPTIONS_SIZE],
         };
         let ip_payload = IpPayload::Raw(&payload);
         let packet = Packet::new_ipv4(ip_repr, ip_payload);
@@ -1339,6 +1356,7 @@ fn test_icmp_reply_size(#[case] medium: Medium) {
         header_len: IPV4_HEADER_LEN,
         dscp: 0,
         ecn: 0,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
     let payload = packet.into_inner();
 
@@ -1361,6 +1379,7 @@ fn test_icmp_reply_size(#[case] medium: Medium) {
         header_len: IPV4_HEADER_LEN,
         dscp: 0,
         ecn: 0,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     assert_eq!(

@@ -611,6 +611,7 @@ mod test {
     use crate::phy::Medium;
     use crate::tests::setup;
     use rstest::*;
+    use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
     fn buffer(packets: usize) -> PacketBuffer<'static> {
         PacketBuffer::new(
@@ -690,6 +691,7 @@ mod test {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
+        options: [0u8; MAX_OPTIONS_SIZE],
     });
 
     pub const REMOTE_IP_REPR: IpRepr = IpReprIpvX(IpvXRepr {
@@ -705,6 +707,7 @@ mod test {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
+        options: [0u8; MAX_OPTIONS_SIZE],
     });
 
     pub const BAD_IP_REPR: IpRepr = IpReprIpvX(IpvXRepr {
@@ -720,6 +723,7 @@ mod test {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
+        options: [0u8; MAX_OPTIONS_SIZE],
     });
 
     const LOCAL_UDP_REPR: UdpRepr = UdpRepr {
@@ -1017,6 +1021,7 @@ mod test {
                         more_frags: false,
                         frag_offset: 0,
                         hop_limit: 0x2a,
+                        options: [0u8; MAX_OPTIONS_SIZE],
                     })
                 );
                 Ok::<_, ()>(())

@@ -1,7 +1,7 @@
 use byteorder::{ByteOrder, NetworkEndian};
 use core::fmt;
 
-use super::{Error, Result, IPV4_HEADER_LEN};
+use super::{Error, Result};
 use crate::phy::ChecksumCapabilities;
 use crate::wire::ip::{checksum, pretty_print_ip_payload};
 
@@ -31,6 +31,14 @@ pub const MULTICAST_ALL_SYSTEMS: Address = Address::new(224, 0, 0, 1);
 
 /// All multicast-capable routers
 pub const MULTICAST_ALL_ROUTERS: Address = Address::new(224, 0, 0, 2);
+
+/// Maximum size of options in octets. The header length field is 4 bits, which limits the
+/// possible header size, and is in units of 4-octets. Since the fixed size fields are always
+/// present in the header, the remaining possible size is the maximum size of the options field.
+pub const MAX_OPTIONS_SIZE: usize = 0xF * 4 - HEADER_LEN;
+
+/// Minimum size of option with padding to ensure alignment with a 32 bit boundary.
+pub const MIN_OPTIONS_SIZE: usize = 4;
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -219,6 +227,7 @@ mod field {
     pub const CHECKSUM: Field = 10..12;
     pub const SRC_ADDR: Field = 12..16;
     pub const DST_ADDR: Field = 16..20;
+    pub const OPTIONS_START: usize = 20;
 }
 
 pub const HEADER_LEN: usize = field::DST_ADDR.end;
@@ -259,6 +268,10 @@ impl<T: AsRef<[u8]>> Packet<T> {
         } else if self.header_len() as u16 > self.total_len() {
             Err(Error)
         } else if len < self.total_len() as usize {
+            Err(Error)
+        } else if self.header_len() % MIN_OPTIONS_SIZE != 0 {
+            Err(Error)
+        } else if self.header_len() > HEADER_LEN + MAX_OPTIONS_SIZE {
             Err(Error)
         } else {
             Ok(())
@@ -364,6 +377,25 @@ impl<T: AsRef<[u8]>> Packet<T> {
     pub fn dst_addr(&self) -> Address {
         let data = self.buffer.as_ref();
         Address::from_bytes(&data[field::DST_ADDR])
+    }
+
+    /// Return true if options are included.
+    #[inline]
+    pub fn has_options(&self) -> bool {
+        self.header_len() > HEADER_LEN
+    }
+
+    /// Return the options. If there are none, an empty slice is returned.
+    #[inline]
+    pub fn options(&self) -> &[u8] {
+        let data = self.buffer.as_ref();
+        &data[field::OPTIONS_START..self.header_len()]
+    }
+
+    /// Return the length of the options.
+    #[inline]
+    pub fn options_len(&self) -> usize {
+        self.header_len() - HEADER_LEN
     }
 
     /// Validate the header checksum.
@@ -525,9 +557,21 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
     /// Return a mutable pointer to the payload.
     #[inline]
     pub fn payload_mut(&mut self) -> &mut [u8] {
-        let range = self.header_len() as usize..self.total_len() as usize;
+        let range = self.header_len() ..self.total_len() as usize;
         let data = self.buffer.as_mut();
         &mut data[range]
+    }
+
+    /// Return a mutable pointer to the options, if any are present.
+    #[inline]
+    pub fn options_mut(&mut self) -> Option<&mut [u8]> {
+        if self.has_options() {
+            let range = field::OPTIONS_START..self.header_len();
+            let data = self.buffer.as_mut();
+            Some(&mut data[range])
+        } else {
+            None
+        }
     }
 }
 
@@ -553,6 +597,7 @@ pub struct Repr {
     pub more_frags: bool,
     pub frag_offset: u16,
     pub hop_limit: u8,
+    pub options: [u8; MAX_OPTIONS_SIZE],
 }
 
 impl Repr {
@@ -582,6 +627,10 @@ impl Repr {
         // All DSCP values are acceptable, since they are of no concern to receiving endpoint.
         // All ECN values are acceptable, since ECN requires opt-in from both endpoints.
         // All TTL values are acceptable, since we do not perform routing.
+
+        let mut options = [0u8; MAX_OPTIONS_SIZE];
+        options[..packet.options_len()].copy_from_slice(packet.options());
+
         Ok(Repr {
             src_addr: packet.src_addr(),
             dst_addr: packet.dst_addr(),
@@ -595,6 +644,7 @@ impl Repr {
             more_frags: packet.more_frags(),
             frag_offset: packet.frag_offset(),
             hop_limit: packet.hop_limit(),
+            options,
         })
     }
 
@@ -794,6 +844,61 @@ pub(crate) mod test {
         packet.payload_mut().copy_from_slice(&PAYLOAD_BYTES[..]);
         assert_eq!(&*packet.into_inner(), &PACKET_BYTES[..]);
     }
+    static OPTION_PACKET_BYTES: [u8; 34] = [
+        0x46, 0x21, 0x00, 0x22, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xf1, 0xec, 0x11, 0x12, 0x13,
+        0x14, 0x21, 0x22, 0x23, 0x24,  // Fixed header
+        0x88, 0x02, 0x5a, 0x5a,  // Stream Identifier option
+        0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,  // Payload
+    ];
+
+    static OPTION_BYTES: [u8; 4] = [0x88, 0x02, 0x5a, 0x5a];
+
+    static OPTION_PAYLOAD_BYTES: [u8; 10] = [0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff];
+
+    #[test]
+    fn test_deconstruct_with_option() {
+        let packet = Packet::new_unchecked(&OPTION_PACKET_BYTES[..]);
+        assert_eq!(packet.version(), 4);
+        assert_eq!(packet.header_len(), 24);
+        assert_eq!(packet.dscp(), 8);
+        assert_eq!(packet.ecn(), 1);
+        assert_eq!(packet.total_len(), 34);
+        assert_eq!(packet.ident(), 0x102);
+        assert!(packet.more_frags());
+        assert!(packet.dont_frag());
+        assert_eq!(packet.frag_offset(), 0x203 * 8);
+        assert_eq!(packet.hop_limit(), 0x1a);
+        assert_eq!(packet.next_header(), Protocol::Icmp);
+        assert_eq!(packet.checksum(), 0xf1ec);
+        assert_eq!(packet.src_addr(), Address::new(0x11, 0x12, 0x13, 0x14));
+        assert_eq!(packet.dst_addr(), Address::new(0x21, 0x22, 0x23, 0x24));
+        assert!(packet.verify_checksum());
+        assert_eq!(packet.payload(), &PAYLOAD_BYTES[..]);
+    }
+
+    #[test]
+   fn test_construct_with_option() {
+       let mut bytes = vec![0xa5; 34];
+       let mut packet = crate::wire::ipv4::Packet::new_unchecked(&mut bytes);
+       packet.set_version(4);
+       packet.set_header_len(24);
+       packet.clear_flags();
+       packet.set_dscp(8);
+       packet.set_ecn(1);
+       packet.set_total_len(34);
+       packet.set_ident(0x102);
+       packet.set_more_frags(true);
+       packet.set_dont_frag(true);
+       packet.set_frag_offset(0x203 * 8);
+       packet.set_hop_limit(0x1a);
+       packet.set_next_header(Protocol::Icmp);
+       packet.set_src_addr(Address::new(0x11, 0x12, 0x13, 0x14));
+       packet.set_dst_addr(Address::new(0x21, 0x22, 0x23, 0x24));
+       packet.options_mut().unwrap().copy_from_slice(&OPTION_BYTES[..]);
+       packet.fill_checksum();
+       packet.payload_mut().copy_from_slice(&OPTION_PAYLOAD_BYTES[..]);
+       assert_eq!(&*packet.into_inner(), &OPTION_PACKET_BYTES[..]);
+   }
 
     #[test]
     fn test_overlong() {
@@ -841,6 +946,7 @@ pub(crate) mod test {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
+            options: [0u8; MAX_OPTIONS_SIZE],
         }
     }
 
@@ -849,6 +955,32 @@ pub(crate) mod test {
         let packet = Packet::new_unchecked(&REPR_PACKET_BYTES[..]);
         let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
         assert_eq!(repr, packet_repr());
+    }
+
+    #[test]
+    fn test_parse_with_option() {
+        let packet = Packet::new_unchecked(&OPTION_PACKET_BYTES[..]);
+        let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+        assert_eq!(repr, Repr {
+            src_addr: Address::new(0x11, 0x12, 0x13, 0x14),
+            dst_addr: Address::new(0x21, 0x22, 0x23, 0x24),
+            next_header: Protocol::Icmp,
+            payload_len: 10,
+            header_len: HEADER_LEN + 4,
+            dscp: 8,
+            ecn: 1,
+            ident: 0x102,
+            dont_frag: true,
+            more_frags: true,
+            frag_offset: 0x203 * 8,
+            hop_limit: 0x1a,
+            options: [0x88, 0x02, 0x5a, 0x5a, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+                0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            ]
+        });
     }
 
     #[test]

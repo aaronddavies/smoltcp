@@ -1,3 +1,4 @@
+use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 use super::*;
 
 impl Interface {
@@ -142,15 +143,13 @@ impl InterfaceInner {
             }
         };
 
-        let ip_options = ipv4_packet.options();
-
         #[cfg(not(feature = "proto-ipv4-fragmentation"))]
         let ip_payload = ipv4_packet.payload();
 
         let ip_repr = IpRepr::Ipv4(ipv4_repr);
 
         #[cfg(feature = "socket-raw")]
-        let handled_by_raw_socket = self.raw_socket_filter(sockets, &ip_repr, ip_payload, ip_options);
+        let handled_by_raw_socket = self.raw_socket_filter(sockets, &ip_repr, ip_payload);
         #[cfg(not(feature = "socket-raw"))]
         let handled_by_raw_socket = false;
 
@@ -397,6 +396,7 @@ impl InterfaceInner {
                 more_frags: false,
                 frag_offset: 0,
                 hop_limit: 64,
+                options: [0u8; MAX_OPTIONS_SIZE],
             };
             Some(Packet::new_ipv4(
                 ipv4_reply_repr,
@@ -420,6 +420,7 @@ impl InterfaceInner {
                             more_frags: false,
                             frag_offset: 0,
                             hop_limit: 64,
+                            options: [0u8; MAX_OPTIONS_SIZE],
                         };
                         Some(Packet::new_ipv4(
                             ipv4_reply_repr,

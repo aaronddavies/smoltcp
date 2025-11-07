@@ -221,6 +221,7 @@ mod tests {
         phy::{Device, Loopback, RxToken, TxToken},
         time::Instant,
     };
+    use crate::wire::ipv4::MAX_OPTIONS_SIZE;
     use crate::wire::IPV4_HEADER_LEN;
 
     #[cfg(any(
@@ -341,6 +342,7 @@ mod tests {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
+            options: [0u8; MAX_OPTIONS_SIZE],
         };
 
         let mut buffer = vec![0_u8; repr.buffer_len()];
