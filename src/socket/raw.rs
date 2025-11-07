@@ -604,7 +604,7 @@ mod test {
 
                     assert!(socket.can_send());
                     assert_eq!(
-                        socket.dispatch(&mut cx, |_, (_, _, Some(_))| unreachable!()),
+                        socket.dispatch(&mut cx, |_, (_, _, _)| unreachable!()),
                         Ok::<_, ()>(())
                     );
 
@@ -613,7 +613,7 @@ mod test {
                     assert!(!socket.can_send());
 
                     assert_eq!(
-                        socket.dispatch(&mut cx, |_, (ip_repr, ip_payload, None)| {
+                        socket.dispatch(&mut cx, |_, (ip_repr, ip_payload, _)| {
                             assert_eq!(ip_repr, $hdr);
                             assert_eq!(ip_payload, &$payload);
                             Err(())
@@ -623,7 +623,7 @@ mod test {
                     assert!(!socket.can_send());
 
                     assert_eq!(
-                        socket.dispatch(&mut cx, |_, (ip_repr, ip_payload, None)| {
+                        socket.dispatch(&mut cx, |_, (ip_repr, ip_payload, _)| {
                             assert_eq!(ip_repr, $hdr);
                             assert_eq!(ip_payload, &$payload);
                             Ok::<_, ()>(())
