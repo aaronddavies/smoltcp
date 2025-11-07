@@ -1221,8 +1221,7 @@ impl InterfaceInner {
                 Some(opt) => {
                     if repr.version() == Ipv4 {
                         let header_len = repr.header_len();
-                        let options_len = header_len - IPV4_HEADER_LEN;
-                        tx_buffer[options_len..header_len].copy_from_slice(opt);
+                        tx_buffer[IPV4_HEADER_LEN..header_len].copy_from_slice(opt);
                     }
                 },
                 None => {}

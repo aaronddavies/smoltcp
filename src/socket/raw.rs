@@ -361,7 +361,6 @@ impl<'a> Socket<'a> {
         debug_assert!(self.accepts(ip_repr));
 
         let header_len = ip_repr.header_len();
-        let options_len = header_len - IPV4_HEADER_LEN;
         let total_len = header_len + payload.len();
 
         net_trace!(
@@ -377,7 +376,7 @@ impl<'a> Socket<'a> {
                 match options {
                     Some(opt) => {
                         if self.ip_version.is_some_and(|ip| ip == Ipv4) {
-                            buf[options_len..header_len].copy_from_slice(opt);
+                            buf[IPV4_HEADER_LEN..header_len].copy_from_slice(opt);
                         }
                     },
                     None => {}

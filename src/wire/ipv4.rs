@@ -402,7 +402,7 @@ impl<'a, T: AsRef<[u8]> + ?Sized> Packet<&'a T> {
     /// Return a pointer to the options.
     #[inline]
     pub fn options(&self) -> &'a [u8] {
-        let range = (self.header_len() - IPV4_HEADER_LEN)..self.header_len();
+        let range = IPV4_HEADER_LEN..self.header_len();
         let data = self.buffer.as_ref();
         &data[range]
     }
