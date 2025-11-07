@@ -1,6 +1,7 @@
 // Heads up! Before working on this file you should read, at least,
 // the parts of RFC 1122 that discuss ARP.
 
+use core::iter::Iterator;
 use heapless::LinearMap;
 
 use crate::config::IFACE_NEIGHBOR_CACHE_COUNT;
@@ -16,6 +17,18 @@ use crate::wire::{HardwareAddress, IpAddress};
 pub struct Neighbor {
     hardware_addr: HardwareAddress,
     expires_at: Instant,
+}
+
+impl Neighbor {
+    /// Returns the hardware address of this neighbor.
+    pub fn hardware_addr(&self) -> HardwareAddress {
+        self.hardware_addr
+    }
+
+    /// Returns the expiration time of this neighbor entry.
+    pub fn expires_at(&self) -> Instant {
+        self.expires_at
+    }
 }
 
 /// An answer to a neighbor cache lookup.
@@ -173,6 +186,23 @@ impl Cache {
 
     pub(crate) fn flush(&mut self) {
         self.storage.clear()
+    }
+
+    /// Returns an iterator over all the neighbors in the cache.
+    ///
+    /// The iterator yields tuples of `(ip_address, neighbor)`.
+    pub fn iter(&self) -> impl Iterator<Item = (&IpAddress, &Neighbor)> {
+        self.storage.iter()
+    }
+
+    /// Returns the number of entries in the neighbor cache.
+    pub fn len(&self) -> usize {
+        self.storage.len()
+    }
+
+    /// Returns true if the neighbor cache is empty.
+    pub fn is_empty(&self) -> bool {
+        self.storage.is_empty()
     }
 }
 
@@ -344,5 +374,47 @@ mod test {
                 .lookup(&MOCK_IP_ADDR_1.into(), Instant::from_millis(0))
                 .found()
         );
+    }
+
+    #[test]
+    fn test_iter_and_length() {
+        let mut cache = Cache::new();
+
+        // Empty cache
+        assert!(cache.is_empty());
+        assert_eq!(cache.len(), 0);
+        assert_eq!(cache.iter().count(), 0);
+
+        // Add entries
+        cache.fill(MOCK_IP_ADDR_1.into(), HADDR_A, Instant::from_millis(100));
+        cache.fill(MOCK_IP_ADDR_2.into(), HADDR_B, Instant::from_millis(200));
+
+        // Check iterator and length
+        assert!(!cache.is_empty());
+        assert_eq!(cache.len(), 2);
+        assert_eq!(cache.iter().count(), 2);
+
+        // Verify iterator contents (unordered)
+        let mut found_a = false;
+        let mut found_b = false;
+
+        for (ip, neighbor) in cache.iter() {
+            if *ip == MOCK_IP_ADDR_1.into() {
+                found_a = true;
+                assert_eq!(neighbor.hardware_addr(), HADDR_A);
+            } else if *ip == MOCK_IP_ADDR_2.into() {
+                found_b = true;
+                assert_eq!(neighbor.hardware_addr(), HADDR_B);
+            }
+        }
+
+        assert!(found_a, "Iterator should contain MOCK_IP_ADDR_1");
+        assert!(found_b, "Iterator should contain MOCK_IP_ADDR_2");
+
+        // Clear the cache and verify it's empty
+        cache.flush();
+        assert!(cache.is_empty());
+        assert_eq!(cache.len(), 0);
+        assert_eq!(cache.iter().count(), 0);
     }
 }

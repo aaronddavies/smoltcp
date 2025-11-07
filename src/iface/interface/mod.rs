@@ -183,6 +183,26 @@ impl Config {
 }
 
 impl Interface {
+    /// Returns a reference to the neighbor cache (ARP table).
+    ///
+    /// This method provides access to the neighbor cache, which maps between IP addresses
+    /// and hardware addresses (MAC addresses). For Ethernet networks, this is effectively
+    /// the ARP table.
+    ///
+    /// # Example
+    /// ```ignore
+    /// use smoltcp::iface::Interface;
+    /// # let iface: Interface = unimplemented!();
+    /// for (ip_addr, neighbor) in iface.neighbor_cache().iter() {
+    ///     println!("IP: {}, MAC: {}, Expires: {}",
+    ///              ip_addr, neighbor.hardware_addr(), neighbor.expires_at());
+    /// }
+    /// ```
+    #[cfg(any(feature = "medium-ethernet", feature = "medium-ieee802154"))]
+    pub fn neighbor_cache(&self) -> &NeighborCache {
+        self.inner.neighbor_cache()
+    }
+
     /// Create a network interface using the previously provided configuration.
     ///
     /// # Panics
@@ -1130,6 +1150,12 @@ impl InterfaceInner {
     fn flush_neighbor_cache(&mut self) {
         #[cfg(any(feature = "medium-ethernet", feature = "medium-ieee802154"))]
         self.neighbor_cache.flush()
+    }
+
+    /// Returns a reference to the neighbor cache.
+    #[cfg(any(feature = "medium-ethernet", feature = "medium-ieee802154"))]
+    pub fn neighbor_cache(&self) -> &NeighborCache {
+        &self.neighbor_cache
     }
 
     fn dispatch_ip<Tx: TxToken>(
