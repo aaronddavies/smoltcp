@@ -6,6 +6,8 @@ mod ipv6;
 mod sixlowpan;
 #[cfg(any(feature = "medium-ethernet", feature = "medium-ieee802154"))]
 mod neighbor_cache;
+#[cfg(feature = "medium-ethernet")]
+mod manual_arp;
 
 #[allow(unused)]
 use std::vec::Vec;
