@@ -1265,6 +1265,66 @@ fn test_raw_socket_with_udp_socket(#[case] medium: Medium) {
 }
 
 #[rstest]
+#[cfg(all(
+    feature = "socket-raw",
+    feature = "medium-ip"
+))]
+fn test_raw_socket_tx_with_option() {
+    let (mut iface, _, _) = setup(Medium::Ip);
+
+    let payload = vec![
+        0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,
+    ];
+    let option = vec![
+        0x88, 0x02, 0x5a, 0x5a,  // Stream Identifier option
+    ];
+
+    let ip_repr = Ipv4Repr {
+        src_addr: Ipv4Address::new(192, 168, 1, 3),
+        dst_addr: Ipv4Address::BROADCAST,
+        next_header: IpProtocol::Unknown(92),
+        header_len: IPV4_HEADER_LEN + 4,
+        ident: 0,
+        dont_frag: true,
+        more_frags: false,
+        frag_offset: 0,
+        hop_limit: 64,
+        payload_len: 10,
+        dscp: 0,
+        ecn: 0,
+    };
+    let ip_payload = IpPayload::Raw(&payload);
+    let packet = Packet::new_ipv4(ip_repr, ip_payload);
+
+    struct TestTxToken;
+
+    impl TxToken for TestTxToken {
+        fn consume<R, F>(self, len: usize, f: F) -> R
+        where
+            F: FnOnce(&mut [u8]) -> R,
+        {
+            let mut junk = [0; 1536];
+            let result = f(&mut junk[..len]);
+            assert_eq!(junk[20..24], [0x88, 0x02, 0x5a, 0x5a]);
+            assert_eq!(junk[24..34],
+                       [0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff]);
+            result
+        }
+    }
+
+    let result =
+    iface.inner.dispatch_ip(
+        TestTxToken {},
+        PacketMeta::default(),
+        packet,
+        Some(&option[..]),
+        &mut iface.fragmenter,
+    );
+
+    assert!(result.is_ok());
+}
+
+#[rstest]
 #[case(Medium::Ip)]
 #[cfg(all(
     feature = "socket-raw",
