@@ -990,7 +990,8 @@ fn check_no_reply_raw_socket(medium: Medium, frame: &crate::wire::ipv4::Packet<&
 #[cfg(all(feature = "socket-raw", feature = "medium-ethernet"))]
 /// Test raw socket will process options to receiving device
 fn test_raw_socket_process_with_option(#[case] medium: Medium) {
-    const PACKET_BYTES: [u8; 34] = [
+    const PACKET_SIZE: usize = 34;
+    const PACKET_BYTES: [u8; PACKET_SIZE] = [
         0x46, 0x21, 0x00, 0x22, 0x01, 0x02, 0x40, 0x00, 0x1a, 0x01, 0x13, 0xf0, 0x11, 0x12, 0x13,
         0x14, 0x21, 0x22, 0x23, 0x24,  // Fixed header
         0x88, 0x02, 0x5a, 0x5a,  // Stream Identifier option
@@ -1024,7 +1025,7 @@ fn test_raw_socket_process_with_option(#[case] medium: Medium) {
     );
     assert_eq!(&*packet.into_inner(), &PACKET_BYTES[..]);
     let socket = sockets.get::<raw::Socket>(handle);
-    assert_eq!(socket.recv_queue(), 34);
+    assert_eq!(socket.recv_queue(), PACKET_SIZE);
 }
 
 #[rstest]
