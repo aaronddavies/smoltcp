@@ -397,7 +397,7 @@ impl<'a> Socket<'a> {
 
     pub(crate) fn dispatch<F, E>(&mut self, cx: &mut Context, emit: F) -> Result<(), E>
     where
-        F: FnOnce(&mut Context, (IpRepr, &[u8])) -> Result<(), E>,
+        F: FnOnce(&mut Context, (IpRepr, &[u8], Option<&[u8]>)) -> Result<(), E>,
     {
         let ip_protocol = self.ip_protocol;
         let ip_version = self.ip_version;
@@ -434,7 +434,8 @@ impl<'a> Socket<'a> {
                         }
                     };
                     net_trace!("raw:{:?}:{:?}: sending", ip_version, ip_protocol);
-                    emit(cx, (IpRepr::Ipv4(ipv4_repr), packet.payload()))
+                    let options = if packet.header_len() > IPV4_HEADER_LEN { Some(packet.options()) } else { None };
+                    emit(cx, (IpRepr::Ipv4(ipv4_repr), packet.payload(), options))
                 }
                 #[cfg(feature = "proto-ipv6")]
                 Ok(IpVersion::Ipv6) => {
@@ -459,7 +460,7 @@ impl<'a> Socket<'a> {
                     };
 
                     net_trace!("raw:{:?}:{:?}: sending", ip_version, ip_protocol);
-                    emit(cx, (IpRepr::Ipv6(ipv6_repr), packet.payload()))
+                    emit(cx, (IpRepr::Ipv6(ipv6_repr), packet.payload(), None))
                 }
                 Err(_) => {
                     net_trace!("raw: sent packet with invalid IP version, dropping.");
@@ -603,7 +604,7 @@ mod test {
 
                     assert!(socket.can_send());
                     assert_eq!(
-                        socket.dispatch(&mut cx, |_, _| unreachable!()),
+                        socket.dispatch(&mut cx, |_, (_, _, Some(_))| unreachable!()),
                         Ok::<_, ()>(())
                     );
 
@@ -612,7 +613,7 @@ mod test {
                     assert!(!socket.can_send());
 
                     assert_eq!(
-                        socket.dispatch(&mut cx, |_, (ip_repr, ip_payload)| {
+                        socket.dispatch(&mut cx, |_, (ip_repr, ip_payload, None)| {
                             assert_eq!(ip_repr, $hdr);
                             assert_eq!(ip_payload, &$payload);
                             Err(())
@@ -622,7 +623,7 @@ mod test {
                     assert!(!socket.can_send());
 
                     assert_eq!(
-                        socket.dispatch(&mut cx, |_, (ip_repr, ip_payload)| {
+                        socket.dispatch(&mut cx, |_, (ip_repr, ip_payload, None)| {
                             assert_eq!(ip_repr, $hdr);
                             assert_eq!(ip_payload, &$payload);
                             Ok::<_, ()>(())

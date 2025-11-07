@@ -203,7 +203,7 @@ impl Interface {
 
                         // NOTE(unwrap): packet destination is multicast, which is always routable and doesn't require neighbor discovery.
                         self.inner
-                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, &mut self.fragmenter)
+                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, None, &mut self.fragmenter)
                             .unwrap();
                     }
                 }
@@ -219,7 +219,7 @@ impl Interface {
 
                         // NOTE(unwrap): packet destination is multicast, which is always routable and doesn't require neighbor discovery.
                         self.inner
-                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, &mut self.fragmenter)
+                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, None, &mut self.fragmenter)
                             .unwrap();
                     }
                 }
@@ -251,7 +251,7 @@ impl Interface {
 
                         // NOTE(unwrap): packet destination is multicast, which is always routable and doesn't require neighbor discovery.
                         self.inner
-                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, &mut self.fragmenter)
+                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, None, &mut self.fragmenter)
                             .unwrap();
                     }
                 }
@@ -267,7 +267,7 @@ impl Interface {
 
                         // NOTE(unwrap): packet destination is multicast, which is always routable and doesn't require neighbor discovery.
                         self.inner
-                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, &mut self.fragmenter)
+                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, None, &mut self.fragmenter)
                             .unwrap();
                     }
                 }
@@ -288,7 +288,7 @@ impl Interface {
                     if let Some(tx_token) = device.transmit(self.inner.now) {
                         // NOTE(unwrap): packet destination is multicast, which is always routable and doesn't require neighbor discovery.
                         self.inner
-                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, &mut self.fragmenter)
+                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, None, &mut self.fragmenter)
                             .unwrap();
                         self.inner.multicast.igmp_report_state = IgmpReportState::Inactive;
                     }
@@ -323,6 +323,7 @@ impl Interface {
                                         tx_token,
                                         PacketMeta::default(),
                                         pkt,
+                                        None,
                                         &mut self.fragmenter,
                                     )
                                     .unwrap();
@@ -365,7 +366,7 @@ impl Interface {
                 if let Some(pkt) = self.inner.mldv2_report_packet(&records) {
                     if let Some(tx_token) = device.transmit(self.inner.now) {
                         self.inner
-                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, &mut self.fragmenter)
+                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, None, &mut self.fragmenter)
                             .unwrap();
                     };
                 };
@@ -377,7 +378,7 @@ impl Interface {
                     if let Some(tx_token) = device.transmit(self.inner.now) {
                         // NOTE(unwrap): packet destination is multicast, which is always routable and doesn't require neighbor discovery.
                         self.inner
-                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, &mut self.fragmenter)
+                            .dispatch_ip(tx_token, PacketMeta::default(), pkt, None, &mut self.fragmenter)
                             .unwrap();
                     }
                 }

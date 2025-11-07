@@ -948,6 +948,7 @@ fn test_packet_len(#[case] medium: Medium) {
                 },
                 PacketMeta::default(),
                 ip_packet,
+                None,
                 &mut iface.fragmenter,
             ),
             Ok(())
@@ -1330,6 +1331,7 @@ fn test_raw_socket_tx_fragmentation(#[case] medium: Medium) {
                 MockTxToken {},
                 PacketMeta::default(),
                 packet,
+                None,
                 &mut iface.fragmenter,
             )
         }));
