@@ -562,16 +562,13 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
         &mut data[range]
     }
 
-    /// Return a mutable pointer to the options, if any are present.
+    /// Return a mutable pointer to the options. An empty slice is returned if 
+    /// no options are present.
     #[inline]
-    pub fn options_mut(&mut self) -> Option<&mut [u8]> {
-        if self.has_options() {
-            let range = field::OPTIONS_START..self.header_len();
-            let data = self.buffer.as_mut();
-            Some(&mut data[range])
-        } else {
-            None
-        }
+    pub fn options_mut(&mut self) -> &mut [u8] {
+        let range = field::OPTIONS_START..self.header_len();
+        let data = self.buffer.as_mut();
+        &mut data[range]
     }
 }
 
@@ -674,6 +671,9 @@ impl Repr {
         packet.set_next_header(self.next_header);
         packet.set_src_addr(self.src_addr);
         packet.set_dst_addr(self.dst_addr);
+
+        let options_len = packet.options_len();
+        packet.options_mut()[..options_len].copy_from_slice(&self.options[..options_len]);
 
         if checksum_caps.ipv4.tx() {
             packet.fill_checksum();
@@ -894,7 +894,7 @@ pub(crate) mod test {
        packet.set_next_header(Protocol::Icmp);
        packet.set_src_addr(Address::new(0x11, 0x12, 0x13, 0x14));
        packet.set_dst_addr(Address::new(0x21, 0x22, 0x23, 0x24));
-       packet.options_mut().unwrap().copy_from_slice(&OPTION_BYTES[..]);
+       packet.options_mut().copy_from_slice(&OPTION_BYTES[..]);
        packet.fill_checksum();
        packet.payload_mut().copy_from_slice(&OPTION_PAYLOAD_BYTES[..]);
        assert_eq!(&*packet.into_inner(), &OPTION_PACKET_BYTES[..]);
