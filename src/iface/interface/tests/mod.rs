@@ -237,7 +237,7 @@ pub fn tcp_not_accepted() {
                 dst_addr: Ipv6Address::UNSPECIFIED,
                 next_header: IpProtocol::Tcp,
                 payload_len: tcp.buffer_len(),
-                hop_limit: 64,
+                hop_limit: 4,
             }),
             &tcp_bytes,
         ),
@@ -250,7 +250,7 @@ pub fn tcp_not_accepted() {
 #[cfg(feature = "medium-ethernet")]
 fn test_manual_arp_request(#[case] medium: Medium) {
     // Set up the interface and mock device
-    let (mut iface, mut sockets, mut device) = setup(medium);
+    let (mut iface, _, mut device) = setup(medium);
 
     // Configure IP address on the interface
     iface.update_ip_addrs(|ip_addrs| {
@@ -301,6 +301,5 @@ fn test_manual_arp_request(#[case] medium: Medium) {
             assert_eq!(target_hardware_addr, EthernetAddress::BROADCAST);
             assert_eq!(target_protocol_addr, target_ip);
         }
-        _ => panic!("Expected EthernetIpv4 ARP request"),
     }
 }

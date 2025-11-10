@@ -188,16 +188,6 @@ impl Interface {
     /// This method provides access to the neighbor cache, which maps between IP addresses
     /// and hardware addresses (MAC addresses). For Ethernet networks, this is effectively
     /// the ARP table.
-    ///
-    /// # Example
-    /// ```ignore
-    /// use smoltcp::iface::Interface;
-    /// # let iface: Interface = unimplemented!();
-    /// for (ip_addr, neighbor) in iface.neighbor_cache().iter() {
-    ///     println!("IP: {}, MAC: {}, Expires: {}",
-    ///              ip_addr, neighbor.hardware_addr(), neighbor.expires_at());
-    /// }
-    /// ```
     #[cfg(any(feature = "medium-ethernet", feature = "medium-ieee802154"))]
     pub fn neighbor_cache(&self) -> &NeighborCache {
         self.inner.neighbor_cache()
@@ -217,16 +207,6 @@ impl Interface {
     /// # Returns
     /// * `Ok(())` if the ARP request was successfully sent
     /// * `Err(DispatchError)` if the ARP request could not be sent
-    ///
-    /// # Examples
-    /// ```ignore
-    /// use smoltcp::wire::Ipv4Address;
-    /// use smoltcp::time::Instant;
-    ///
-    /// let ip = Ipv4Address::new(192, 168, 1, 1);
-    /// let timestamp = Instant::now();
-    /// let result = iface.send_arp_request(&mut device, ip, timestamp);
-    /// ```
     #[cfg(all(feature = "medium-ethernet", feature = "proto-ipv4"))]
     pub fn send_arp_request<D>(&mut self, device: &mut D, addr: Ipv4Address, timestamp: Instant) -> Result<(), DispatchError>
     where
