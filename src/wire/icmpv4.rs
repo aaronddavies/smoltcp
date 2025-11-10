@@ -4,8 +4,8 @@ use core::{cmp, fmt};
 use super::{Error, Result};
 use crate::phy::ChecksumCapabilities;
 use crate::wire::ip::checksum;
-use crate::wire::{Ipv4Packet, Ipv4Repr};
 use crate::wire::ipv4::MAX_OPTIONS_SIZE;
+use crate::wire::{Ipv4Packet, Ipv4Repr};
 
 enum_with_unknown! {
     /// Internet protocol control message type.

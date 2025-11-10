@@ -371,7 +371,7 @@ impl<'a> Socket<'a> {
         match self.rx_buffer.enqueue(total_len, ()) {
             Ok(buf) => {
                 ip_repr.emit(&mut buf[..header_len], &cx.checksum_caps());
-               buf[header_len..].copy_from_slice(payload);
+                buf[header_len..].copy_from_slice(payload);
             }
             Err(_) => net_trace!(
                 "raw:{:?}:{:?}: buffer full, dropped incoming packet",
@@ -483,12 +483,12 @@ mod test {
     use rstest::*;
 
     use super::*;
-    use crate::wire::{IpRepr, IPV4_HEADER_LEN};
+    use crate::wire::ipv4::MAX_OPTIONS_SIZE;
+    use crate::wire::{IPV4_HEADER_LEN, IpRepr};
     #[cfg(feature = "proto-ipv4")]
     use crate::wire::{Ipv4Address, Ipv4Repr};
     #[cfg(feature = "proto-ipv6")]
     use crate::wire::{Ipv6Address, Ipv6Repr};
-    use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
     fn buffer(packets: usize) -> PacketBuffer<'static> {
         PacketBuffer::new(vec![PacketMetadata::EMPTY; packets], vec![0; 48 * packets])
@@ -496,9 +496,9 @@ mod test {
 
     #[cfg(feature = "proto-ipv4")]
     mod ipv4_locals {
-        use crate::wire::ipv4::MAX_OPTIONS_SIZE;
-        use crate::wire::IPV4_HEADER_LEN;
         use super::*;
+        use crate::wire::IPV4_HEADER_LEN;
+        use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
         pub fn socket(
             rx_buffer: PacketBuffer<'static>,

@@ -1,5 +1,5 @@
-use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 use super::*;
+use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
 #[rstest]
 #[case(Medium::Ethernet)]
@@ -1005,9 +1005,9 @@ fn test_raw_socket_process_with_option(#[case] medium: Medium) {
     const PACKET_SIZE: usize = 34;
     const PACKET_BYTES: [u8; PACKET_SIZE] = [
         0x46, 0x21, 0x00, 0x22, 0x01, 0x02, 0x40, 0x00, 0x1a, 0x01, 0x13, 0xf0, 0x11, 0x12, 0x13,
-        0x14, 0x21, 0x22, 0x23, 0x24,  // Fixed header
-        0x88, 0x02, 0x5a, 0x5a,  // Stream Identifier option
-        0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,  // Payload
+        0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
+        0x88, 0x02, 0x5a, 0x5a, // Stream Identifier option
+        0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload
     ];
 
     let packet = crate::wire::ipv4::Packet::new_unchecked(&PACKET_BYTES[..]);
@@ -1015,8 +1015,10 @@ fn test_raw_socket_process_with_option(#[case] medium: Medium) {
     let (mut iface, mut sockets, _) = setup(medium);
 
     let packets = 1;
-    let rx_buffer =
-        raw::PacketBuffer::new(vec![raw::PacketMetadata::EMPTY; packets], vec![0; 48 * packets]);
+    let rx_buffer = raw::PacketBuffer::new(
+        vec![raw::PacketMetadata::EMPTY; packets],
+        vec![0; 48 * packets],
+    );
     let tx_buffer = raw::PacketBuffer::new(
         vec![raw::PacketMetadata::EMPTY; packets],
         vec![0; 48 * packets],
@@ -1029,7 +1031,7 @@ fn test_raw_socket_process_with_option(#[case] medium: Medium) {
         PacketMeta::default(),
         HardwareAddress::default(),
         &packet,
-        &mut iface.fragments
+        &mut iface.fragments,
     );
     assert_eq!(result, None);
     let socket = sockets.get::<raw::Socket>(handle);
@@ -1276,16 +1278,11 @@ fn test_raw_socket_with_udp_socket(#[case] medium: Medium) {
 }
 
 #[rstest]
-#[cfg(all(
-    feature = "socket-raw",
-    feature = "medium-ip"
-))]
+#[cfg(all(feature = "socket-raw", feature = "medium-ip"))]
 fn test_raw_socket_tx_with_option() {
     let (mut iface, _, _) = setup(Medium::Ip);
 
-    let payload = vec![
-        0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,
-    ];
+    let payload = vec![0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff];
 
     let ip_repr = Ipv4Repr {
         src_addr: Ipv4Address::new(192, 168, 1, 3),
@@ -1300,12 +1297,11 @@ fn test_raw_socket_tx_with_option() {
         payload_len: 10,
         dscp: 0,
         ecn: 0,
-        options: [0x88, 0x02, 0x5a, 0x5a, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-        ]
+        options: [
+            0x88, 0x02, 0x5a, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+        ],
     };
     let ip_payload = IpPayload::Raw(&payload);
     let packet = Packet::new_ipv4(ip_repr, ip_payload);
@@ -1320,14 +1316,15 @@ fn test_raw_socket_tx_with_option() {
             let mut junk = [0; 1536];
             let result = f(&mut junk[..len]);
             assert_eq!(junk[20..24], [0x88, 0x02, 0x5a, 0x5a]);
-            assert_eq!(junk[24..34],
-                       [0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff]);
+            assert_eq!(
+                junk[24..34],
+                [0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff]
+            );
             result
         }
     }
 
-    let result =
-    iface.inner.dispatch_ip(
+    let result = iface.inner.dispatch_ip(
         TestTxToken {},
         PacketMeta::default(),
         packet,

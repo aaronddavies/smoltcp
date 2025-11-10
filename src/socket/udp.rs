@@ -606,12 +606,12 @@ impl<'a> Socket<'a> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::wire::{IpRepr, UdpRepr, IPV4_HEADER_LEN};
+    use crate::wire::{IPV4_HEADER_LEN, IpRepr, UdpRepr};
 
     use crate::phy::Medium;
     use crate::tests::setup;
-    use rstest::*;
     use crate::wire::ipv4::MAX_OPTIONS_SIZE;
+    use rstest::*;
 
     fn buffer(packets: usize) -> PacketBuffer<'static> {
         PacketBuffer::new(

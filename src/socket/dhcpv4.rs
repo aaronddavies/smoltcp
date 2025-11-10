@@ -1,19 +1,19 @@
 #[cfg(feature = "async")]
 use core::task::Waker;
 
+#[cfg(feature = "async")]
+use super::WakerRegistration;
 use crate::iface::Context;
 use crate::time::{Duration, Instant};
 use crate::wire::dhcpv4::field as dhcpv4_field;
+use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 use crate::wire::{
     DHCP_CLIENT_PORT, DHCP_MAX_DNS_SERVER_COUNT, DHCP_SERVER_PORT, DhcpMessageType, DhcpPacket,
-    DhcpRepr, IpAddress, IpProtocol, Ipv4Address, Ipv4AddressExt, Ipv4Cidr, Ipv4Repr, 
-    UDP_HEADER_LEN, UdpRepr, IPV4_HEADER_LEN
+    DhcpRepr, IPV4_HEADER_LEN, IpAddress, IpProtocol, Ipv4Address, Ipv4AddressExt, Ipv4Cidr,
+    Ipv4Repr, UDP_HEADER_LEN, UdpRepr,
 };
 use crate::wire::{DhcpOption, HardwareAddress};
 use heapless::Vec;
-use crate::wire::ipv4::MAX_OPTIONS_SIZE;
-#[cfg(feature = "async")]
-use super::WakerRegistration;
 
 use super::PollAt;
 

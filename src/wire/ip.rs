@@ -1,13 +1,13 @@
 use core::convert::From;
 use core::fmt;
 
-use super::{Error, Result, IPV4_HEADER_LEN};
+use super::{Error, IPV4_HEADER_LEN, Result};
 use crate::phy::ChecksumCapabilities;
+use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 #[cfg(feature = "proto-ipv4")]
 use crate::wire::{Ipv4Address, Ipv4AddressExt, Ipv4Cidr, Ipv4Packet, Ipv4Repr};
 #[cfg(feature = "proto-ipv6")]
 use crate::wire::{Ipv6Address, Ipv6AddressExt, Ipv6Cidr, Ipv6Packet, Ipv6Repr};
-use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
 /// Internet protocol version.
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]

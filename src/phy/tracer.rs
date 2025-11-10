@@ -217,12 +217,12 @@ mod tests {
     use super::*;
 
     use crate::phy::ChecksumCapabilities;
+    use crate::wire::IPV4_HEADER_LEN;
+    use crate::wire::ipv4::MAX_OPTIONS_SIZE;
     use crate::{
         phy::{Device, Loopback, RxToken, TxToken},
         time::Instant,
     };
-    use crate::wire::ipv4::MAX_OPTIONS_SIZE;
-    use crate::wire::IPV4_HEADER_LEN;
 
     #[cfg(any(
         feature = "medium-ethernet",

@@ -9,8 +9,8 @@ use crate::storage::Assembler;
 use crate::time::{Duration, Instant};
 use crate::wire::*;
 
-use core::result::Result;
 use crate::wire::ipv4::MAX_OPTIONS_SIZE;
+use core::result::Result;
 
 #[cfg(feature = "alloc")]
 type Buffer = alloc::vec::Vec<u8>;

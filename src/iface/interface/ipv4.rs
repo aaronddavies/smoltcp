@@ -1,5 +1,5 @@
-use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 use super::*;
+use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
 impl Interface {
     /// Process fragments that still need to be sent for IPv4 packets.

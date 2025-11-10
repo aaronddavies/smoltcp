@@ -2,7 +2,7 @@
 
 mod wire {
     use smoltcp::phy::ChecksumCapabilities;
-    use smoltcp::wire::{IpAddress, IpProtocol, IPV4_HEADER_LEN, IPV4_MAX_OPTIONS_SIZE};
+    use smoltcp::wire::{IPV4_HEADER_LEN, IPV4_MAX_OPTIONS_SIZE, IpAddress, IpProtocol};
     #[cfg(feature = "proto-ipv4")]
     use smoltcp::wire::{Ipv4Address, Ipv4Packet, Ipv4Repr};
     #[cfg(feature = "proto-ipv6")]

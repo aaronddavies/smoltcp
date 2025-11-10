@@ -8,14 +8,14 @@ use crate::socket::WakerRegistration;
 use crate::socket::{Context, PollAt};
 
 use crate::storage::Empty;
-use crate::wire::{IcmpRepr, IPV4_HEADER_LEN};
+use crate::wire::ipv4::MAX_OPTIONS_SIZE;
+use crate::wire::{IPV4_HEADER_LEN, IcmpRepr};
 #[cfg(feature = "proto-ipv4")]
 use crate::wire::{Icmpv4Packet, Icmpv4Repr, Ipv4Repr};
 #[cfg(feature = "proto-ipv6")]
 use crate::wire::{Icmpv6Packet, Icmpv6Repr, Ipv6Repr};
 use crate::wire::{IpAddress, IpListenEndpoint, IpProtocol, IpRepr};
 use crate::wire::{UdpPacket, UdpRepr};
-use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
 /// Error returned by [`Socket::bind`]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -695,8 +695,8 @@ mod test_ipv4 {
     use rstest::*;
 
     use super::tests_common::*;
-    use crate::wire::{Icmpv4DstUnreachable, IpEndpoint, Ipv4Address};
     use crate::wire::ipv4::MAX_OPTIONS_SIZE;
+    use crate::wire::{Icmpv4DstUnreachable, IpEndpoint, Ipv4Address};
 
     const REMOTE_IPV4: Ipv4Address = Ipv4Address::new(192, 168, 1, 2);
     const LOCAL_IPV4: Ipv4Address = Ipv4Address::new(192, 168, 1, 1);

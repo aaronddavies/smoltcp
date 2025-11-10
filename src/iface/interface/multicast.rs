@@ -6,8 +6,8 @@ use super::{Interface, InterfaceInner};
 use super::{IpPayload, Packet, check};
 use crate::config::{IFACE_MAX_ADDR_COUNT, IFACE_MAX_MULTICAST_GROUP_COUNT};
 use crate::phy::{Device, PacketMeta};
-use crate::wire::*;
 use crate::wire::ipv4::MAX_OPTIONS_SIZE;
+use crate::wire::*;
 
 /// Error type for `join_multicast_group`, `leave_multicast_group`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
