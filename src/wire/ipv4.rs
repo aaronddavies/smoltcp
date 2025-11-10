@@ -35,10 +35,8 @@ pub const MULTICAST_ALL_ROUTERS: Address = Address::new(224, 0, 0, 2);
 /// Maximum size of options in octets. The header length field is 4 bits, which limits the
 /// possible header size, and is in units of 4-octets. Since the fixed size fields are always
 /// present in the header, the remaining possible size is the maximum size of the options field.
-pub const MAX_OPTIONS_SIZE: usize = 0xF * 4 - HEADER_LEN;
-
-/// Minimum size of option with padding to ensure alignment with a 32 bit boundary.
-pub const MIN_OPTIONS_SIZE: usize = 4;
+/// 0xF * 4 - HEADER_LEN == 40
+pub const MAX_OPTIONS_SIZE: usize = 40;
 
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -269,7 +267,7 @@ impl<T: AsRef<[u8]>> Packet<T> {
             Err(Error)
         } else if len < self.total_len() as usize {
             Err(Error)
-        } else if self.header_len() % MIN_OPTIONS_SIZE != 0 {
+        } else if self.header_len() % 4 != 0 {
             Err(Error)
         } else if self.header_len() > HEADER_LEN + MAX_OPTIONS_SIZE {
             Err(Error)
@@ -704,7 +702,7 @@ impl<T: AsRef<[u8]> + ?Sized> fmt::Display for Packet<&T> {
                 if self.version() != 4 {
                     write!(f, " ver={}", self.version())?;
                 }
-                if self.header_len() < 20 {
+                if self.header_len() < HEADER_LEN || self.header_len() > HEADER_LEN + MAX_OPTIONS_SIZE {
                     write!(f, " hlen={}", self.header_len())?;
                 }
                 if self.dscp() != 0 {
