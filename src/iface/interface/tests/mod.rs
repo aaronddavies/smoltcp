@@ -254,7 +254,9 @@ fn test_manual_arp_request(#[case] medium: Medium) {
 
     // Configure IP address on the interface
     iface.update_ip_addrs(|ip_addrs| {
-        ip_addrs.push(IpCidr::new(Ipv4Address::new(192, 168, 1, 1).into(), 24)).unwrap();
+        ip_addrs
+            .push(IpCidr::new(Ipv4Address::new(192, 168, 1, 1).into(), 24))
+            .unwrap();
     });
 
     // The target IP address we want to resolve
@@ -296,7 +298,10 @@ fn test_manual_arp_request(#[case] medium: Medium) {
             target_protocol_addr,
         } => {
             assert_eq!(operation, ArpOperation::Request);
-            assert_eq!(source_hardware_addr, iface.hardware_addr().ethernet_or_panic());
+            assert_eq!(
+                source_hardware_addr,
+                iface.hardware_addr().ethernet_or_panic()
+            );
             assert_eq!(source_protocol_addr, Ipv4Address::new(192, 168, 1, 1));
             assert_eq!(target_hardware_addr, EthernetAddress::BROADCAST);
             assert_eq!(target_protocol_addr, target_ip);

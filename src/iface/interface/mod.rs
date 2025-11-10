@@ -208,9 +208,14 @@ impl Interface {
     /// * `Ok(())` if the ARP request was successfully sent
     /// * `Err(DispatchError)` if the ARP request could not be sent
     #[cfg(all(feature = "medium-ethernet", feature = "proto-ipv4"))]
-    pub fn send_arp_request<D>(&mut self, device: &mut D, addr: Ipv4Address, timestamp: Instant) -> Result<(), DispatchError>
+    pub fn send_arp_request<D>(
+        &mut self,
+        device: &mut D,
+        addr: Ipv4Address,
+        timestamp: Instant,
+    ) -> Result<(), DispatchError>
     where
-        D: Device + ?Sized
+        D: Device + ?Sized,
     {
         self.inner.now = timestamp;
 
@@ -1178,9 +1183,13 @@ impl InterfaceInner {
 
     /// Send an ARP request for a given IPv4 address.
     #[cfg(all(feature = "medium-ethernet", feature = "proto-ipv4"))]
-    pub(crate) fn send_arp_request<Tx>(&mut self, tx_token: Tx, target_addr: Ipv4Address) -> Result<(), DispatchError>
+    pub(crate) fn send_arp_request<Tx>(
+        &mut self,
+        tx_token: Tx,
+        target_addr: Ipv4Address,
+    ) -> Result<(), DispatchError>
     where
-        Tx: TxToken
+        Tx: TxToken,
     {
         if !matches!(self.caps.medium, Medium::Ethernet) {
             return Err(DispatchError::Unaddressable);
@@ -1190,7 +1199,7 @@ impl InterfaceInner {
         let src_hardware_addr = self.hardware_addr.ethernet_or_panic();
         let source_protocol_addr = match self.get_source_address_ipv4(&target_addr) {
             Some(addr) => addr,
-            None => return Err(DispatchError::NoRoute)
+            None => return Err(DispatchError::NoRoute),
         };
 
         let arp_repr = ArpRepr::EthernetIpv4 {
