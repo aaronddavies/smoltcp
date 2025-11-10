@@ -7,7 +7,6 @@ use crate::phy::ChecksumCapabilities;
 use crate::wire::{Ipv4Address, Ipv4AddressExt, Ipv4Cidr, Ipv4Packet, Ipv4Repr};
 #[cfg(feature = "proto-ipv6")]
 use crate::wire::{Ipv6Address, Ipv6AddressExt, Ipv6Cidr, Ipv6Packet, Ipv6Repr};
-use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
 /// Internet protocol version.
 #[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -616,7 +615,7 @@ impl Repr {
                 more_frags: false,
                 frag_offset: 0,
                 hop_limit,
-                options: [0u8; MAX_OPTIONS_SIZE],
+                options: None,
             }),
             #[cfg(feature = "proto-ipv6")]
             (Address::Ipv6(src_addr), Address::Ipv6(dst_addr)) => Self::Ipv6(Ipv6Repr {
@@ -1079,7 +1078,7 @@ pub(crate) mod test {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
-            options: [0u8; MAX_OPTIONS_SIZE],
+            options: None,
         };
 
         let packet = Packet::new_unchecked(&ipv4_packet_bytes[..]);

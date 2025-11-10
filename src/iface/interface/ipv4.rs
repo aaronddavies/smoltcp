@@ -1,4 +1,3 @@
-use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 use super::*;
 
 impl Interface {
@@ -396,7 +395,7 @@ impl InterfaceInner {
                 more_frags: false,
                 frag_offset: 0,
                 hop_limit: 64,
-                options: [0u8; MAX_OPTIONS_SIZE],
+                options: None,
             };
             Some(Packet::new_ipv4(
                 ipv4_reply_repr,
@@ -420,7 +419,7 @@ impl InterfaceInner {
                             more_frags: false,
                             frag_offset: 0,
                             hop_limit: 64,
-                            options: [0u8; MAX_OPTIONS_SIZE],
+                            options: None,
                         };
                         Some(Packet::new_ipv4(
                             ipv4_reply_repr,

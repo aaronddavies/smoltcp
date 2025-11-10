@@ -60,7 +60,7 @@ let repr = Ipv4Repr {
     more_frags: false,
     frag_offset: 0,
     hop_limit:   64,
-    options: [0u8; IPV4_MAX_OPTIONS_SIZE],
+    options: None,
 };
 let mut buffer = vec![0; repr.buffer_len() + repr.payload_len];
 { // emission

@@ -5,7 +5,6 @@ use super::{Error, Result};
 use crate::phy::ChecksumCapabilities;
 use crate::wire::ip::checksum;
 use crate::wire::{Ipv4Packet, Ipv4Repr};
-use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
 enum_with_unknown! {
     /// Internet protocol control message type.
@@ -445,7 +444,7 @@ impl<'a> Repr<'a> {
                         more_frags: false,
                         frag_offset: 0,
                         hop_limit: ip_packet.hop_limit(),
-                        options: [0u8; MAX_OPTIONS_SIZE],
+                        options: None,
                     },
                     data: payload,
                 })
@@ -476,7 +475,7 @@ impl<'a> Repr<'a> {
                         more_frags: false,
                         frag_offset: 0,
                         hop_limit: ip_packet.hop_limit(),
-                        options: [0u8; MAX_OPTIONS_SIZE],
+                        options: None,
                     },
                     data: payload,
                 })
