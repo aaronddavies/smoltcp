@@ -269,7 +269,9 @@ impl<T: AsRef<[u8]>> Packet<T> {
             Err(Error)
         } else if self.header_len() % 4 != 0 {
             Err(Error)
-        } else if self.header_len() > HEADER_LEN + MAX_OPTIONS_SIZE {
+        } else if self.header_len() as usize > HEADER_LEN + MAX_OPTIONS_SIZE {
+            Err(Error)
+        } else if (self.header_len() as usize) < HEADER_LEN {
             Err(Error)
         } else {
             Ok(())
@@ -290,9 +292,9 @@ impl<T: AsRef<[u8]>> Packet<T> {
 
     /// Return the header length, in octets.
     #[inline]
-    pub fn header_len(&self) -> usize {
+    pub fn header_len(&self) -> u8 {
         let data = self.buffer.as_ref();
-        ((data[field::VER_IHL] & 0x0f) * 4) as usize
+        (data[field::VER_IHL] & 0x0f) * 4
     }
 
     /// Return the Differential Services Code Point field.
@@ -380,20 +382,20 @@ impl<T: AsRef<[u8]>> Packet<T> {
     /// Return true if options are included.
     #[inline]
     pub fn has_options(&self) -> bool {
-        self.header_len() > HEADER_LEN
+        self.header_len() as usize > HEADER_LEN
     }
 
     /// Return the options. If there are none, an empty slice is returned.
     #[inline]
     pub fn options(&self) -> &[u8] {
         let data = self.buffer.as_ref();
-        &data[field::OPTIONS_START..self.header_len()]
+        &data[field::OPTIONS_START..self.header_len() as usize]
     }
 
     /// Return the length of the options.
     #[inline]
     pub fn options_len(&self) -> usize {
-        self.header_len() - HEADER_LEN
+        self.header_len() as usize - HEADER_LEN
     }
 
     /// Validate the header checksum.
@@ -555,7 +557,7 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
     /// Return a mutable pointer to the payload.
     #[inline]
     pub fn payload_mut(&mut self) -> &mut [u8] {
-        let range = self.header_len() ..self.total_len() as usize;
+        let range = self.header_len() as usize ..self.total_len() as usize;
         let data = self.buffer.as_mut();
         &mut data[range]
     }
@@ -564,7 +566,7 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
     /// no options are present.
     #[inline]
     pub fn options_mut(&mut self) -> &mut [u8] {
-        let range = field::OPTIONS_START..self.header_len();
+        let range = field::OPTIONS_START..self.header_len() as usize;
         let data = self.buffer.as_mut();
         &mut data[range]
     }
@@ -702,7 +704,8 @@ impl<T: AsRef<[u8]> + ?Sized> fmt::Display for Packet<&T> {
                 if self.version() != 4 {
                     write!(f, " ver={}", self.version())?;
                 }
-                if self.header_len() < HEADER_LEN || self.header_len() > HEADER_LEN + MAX_OPTIONS_SIZE {
+                if (self.header_len() as usize) < HEADER_LEN ||
+                    self.header_len() as usize > HEADER_LEN + MAX_OPTIONS_SIZE {
                     write!(f, " hlen={}", self.header_len())?;
                 }
                 if self.dscp() != 0 {
