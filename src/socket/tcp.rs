@@ -2731,6 +2731,7 @@ mod test {
     use crate::wire::{IpRepr, IPV4_HEADER_LEN};
     use std::ops::{Deref, DerefMut};
     use std::vec::Vec;
+    use crate::wire::ipv4::MAX_OPTIONS_SIZE;
     // =========================================================================================//
     // Constants
     // =========================================================================================//
@@ -2803,7 +2804,7 @@ mod test {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
-        options: None,
+        options: [0u8; MAX_OPTIONS_SIZE],
     });
     const SEND_TEMPL: TcpRepr<'static> = TcpRepr {
         src_port: REMOTE_PORT,
@@ -2832,7 +2833,7 @@ mod test {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
-        options: None,
+        options: [0u8; MAX_OPTIONS_SIZE],
     });
     const RECV_TEMPL: TcpRepr<'static> = TcpRepr {
         src_port: LOCAL_PORT,
@@ -2892,7 +2893,7 @@ mod test {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
-            options: None,
+            options: [0u8; MAX_OPTIONS_SIZE],
         });
         net_trace!("send: {}", repr);
 
@@ -8547,7 +8548,7 @@ mod test {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
-            options: None,
+            options: [0u8; MAX_OPTIONS_SIZE],
         });
         assert!(s.socket.accepts(&mut s.cx, &ip_repr, &tcp_repr));
 
@@ -8564,7 +8565,7 @@ mod test {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
-            options: None,
+            options: [0u8; MAX_OPTIONS_SIZE],
         });
         assert!(!s.socket.accepts(&mut s.cx, &ip_repr_wrong_src, &tcp_repr));
 
@@ -8581,7 +8582,7 @@ mod test {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
-            options: None,
+            options: [0u8; MAX_OPTIONS_SIZE],
         });
         assert!(!s.socket.accepts(&mut s.cx, &ip_repr_wrong_dst, &tcp_repr));
     }

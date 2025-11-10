@@ -10,6 +10,7 @@ use crate::time::{Duration, Instant};
 use crate::wire::*;
 
 use core::result::Result;
+use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
 #[cfg(feature = "alloc")]
 type Buffer = alloc::vec::Vec<u8>;
@@ -341,7 +342,7 @@ impl Fragmenter {
                     more_frags: false,
                     frag_offset: 0,
                     hop_limit: 0,
-                    options: None,
+                    options: [0u8; MAX_OPTIONS_SIZE],
                 },
                 #[cfg(feature = "medium-ethernet")]
                 dst_hardware_addr: EthernetAddress::default(),
@@ -393,7 +394,7 @@ impl Fragmenter {
                 dont_frag: false,
                 more_frags: false,
                 frag_offset: 0,
-                options: None,
+                options: [0u8; MAX_OPTIONS_SIZE],
             };
             #[cfg(feature = "medium-ethernet")]
             {

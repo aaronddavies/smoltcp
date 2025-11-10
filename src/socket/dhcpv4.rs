@@ -11,6 +11,7 @@ use crate::wire::{
 };
 use crate::wire::{DhcpOption, HardwareAddress};
 use heapless::Vec;
+use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 #[cfg(feature = "async")]
 use super::WakerRegistration;
 
@@ -618,7 +619,7 @@ impl<'a> Socket<'a> {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
-            options: None,
+            options: [0u8; MAX_OPTIONS_SIZE],
         };
 
         match &mut self.state {
@@ -925,7 +926,7 @@ mod test {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
-        options: None,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     const IP_BROADCAST_ADDRESSED: Ipv4Repr = Ipv4Repr {
@@ -941,7 +942,7 @@ mod test {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
-        options: None,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     const IP_SERVER_BROADCAST: Ipv4Repr = Ipv4Repr {
@@ -957,7 +958,7 @@ mod test {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
-        options: None,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     const IP_RECV: Ipv4Repr = Ipv4Repr {
@@ -973,7 +974,7 @@ mod test {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
-        options: None,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     const IP_SEND: Ipv4Repr = Ipv4Repr {
@@ -989,7 +990,7 @@ mod test {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 64,
-        options: None,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     const UDP_SEND: UdpRepr = UdpRepr {

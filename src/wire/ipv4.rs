@@ -594,7 +594,7 @@ pub struct Repr {
     pub more_frags: bool,
     pub frag_offset: u16,
     pub hop_limit: u8,
-    pub options: Option<[u8; MAX_OPTIONS_SIZE]>,
+    pub options: [u8; MAX_OPTIONS_SIZE],
 }
 
 impl Repr {
@@ -625,14 +625,8 @@ impl Repr {
         // All ECN values are acceptable, since ECN requires opt-in from both endpoints.
         // All TTL values are acceptable, since we do not perform routing.
 
-        let options =
-        if packet.has_options() {
-            let mut option_bytes = [0u8; MAX_OPTIONS_SIZE];
-            option_bytes[..packet.options_len()].copy_from_slice(packet.options());
-            Some(option_bytes)
-        } else {
-            None
-        };
+        let mut options = [0u8; MAX_OPTIONS_SIZE];
+        options[..packet.options_len()].copy_from_slice(packet.options());
 
         Ok(Repr {
             src_addr: packet.src_addr(),
@@ -678,10 +672,10 @@ impl Repr {
         packet.set_src_addr(self.src_addr);
         packet.set_dst_addr(self.dst_addr);
 
-        self.options.map(|bytes| {
-            let options_len = packet.options_len();
-            packet.options_mut()[..options_len].copy_from_slice(&bytes[..options_len]);
-        });
+        let options_len = packet.options_len();
+        if options_len > 0 {
+            packet.options_mut()[..options_len].copy_from_slice(&self.options[..options_len]);
+        }
 
         if checksum_caps.ipv4.tx() {
             packet.fill_checksum();
@@ -954,7 +948,7 @@ pub(crate) mod test {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 64,
-            options: None,
+            options: [0u8; MAX_OPTIONS_SIZE],
         }
     }
 
@@ -982,13 +976,12 @@ pub(crate) mod test {
             more_frags: true,
             frag_offset: 0x203 * 8,
             hop_limit: 0x1a,
-            options: Some([
-                0x88, 0x02, 0x5a, 0x5a, 0x00, 0x00, 0x00, 0x00,
+            options: [0x88, 0x02, 0x5a, 0x5a, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
                 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-            ])
+            ]
         });
     }
 

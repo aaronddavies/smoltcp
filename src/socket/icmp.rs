@@ -15,6 +15,7 @@ use crate::wire::{Icmpv4Packet, Icmpv4Repr, Ipv4Repr};
 use crate::wire::{Icmpv6Packet, Icmpv6Repr, Ipv6Repr};
 use crate::wire::{IpAddress, IpListenEndpoint, IpProtocol, IpRepr};
 use crate::wire::{UdpPacket, UdpRepr};
+use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
 /// Error returned by [`Socket::bind`]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
@@ -606,7 +607,7 @@ impl<'a> Socket<'a> {
                         more_frags: false,
                         frag_offset: 0,
                         hop_limit,
-                        options: None,
+                        options: [0u8; MAX_OPTIONS_SIZE],
                     });
                     emit(cx, (ip_repr, IcmpRepr::Ipv4(repr)))
                 }
@@ -695,6 +696,7 @@ mod test_ipv4 {
 
     use super::tests_common::*;
     use crate::wire::{Icmpv4DstUnreachable, IpEndpoint, Ipv4Address};
+    use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
     const REMOTE_IPV4: Ipv4Address = Ipv4Address::new(192, 168, 1, 2);
     const LOCAL_IPV4: Ipv4Address = Ipv4Address::new(192, 168, 1, 1);
@@ -722,7 +724,7 @@ mod test_ipv4 {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 0x40,
-        options: None,
+        options: [0u8; MAX_OPTIONS_SIZE],
     });
 
     static REMOTE_IPV4_REPR: Ipv4Repr = Ipv4Repr {
@@ -738,7 +740,7 @@ mod test_ipv4 {
         more_frags: false,
         frag_offset: 0,
         hop_limit: 0x40,
-        options: None,
+        options: [0u8; MAX_OPTIONS_SIZE],
     };
 
     #[test]
@@ -844,7 +846,7 @@ mod test_ipv4 {
                         more_frags: false,
                         frag_offset: 0,
                         hop_limit: 0x2a,
-                        options: None,
+                        options: [0u8; MAX_OPTIONS_SIZE],
                     })
                 );
                 Ok::<_, ()>(())
@@ -949,7 +951,7 @@ mod test_ipv4 {
                 more_frags: false,
                 frag_offset: 0,
                 hop_limit: 0x40,
-                options: None,
+                options: [0u8; MAX_OPTIONS_SIZE],
             },
             data,
         };
@@ -966,7 +968,7 @@ mod test_ipv4 {
             more_frags: false,
             frag_offset: 0,
             hop_limit: 0x40,
-            options: None,
+            options: [0u8; MAX_OPTIONS_SIZE],
         };
 
         assert!(!socket.can_recv());
