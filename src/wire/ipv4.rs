@@ -656,11 +656,6 @@ impl Repr {
         self.header_len
     }
 
-    /// Return whether options are present.
-    pub const fn has_options(&self) -> bool {
-        self.options.is_some()
-    }
-
     /// Emit a high-level representation into an Internet Protocol version 4 packet.
     pub fn emit<T: AsRef<[u8]> + AsMut<[u8]>>(
         &self,
@@ -683,12 +678,10 @@ impl Repr {
         packet.set_src_addr(self.src_addr);
         packet.set_dst_addr(self.dst_addr);
 
-        if self.has_options() {
-            self.options.map(|bytes| {
-                let options_len = packet.options_len();
-                packet.options_mut()[..options_len].copy_from_slice(&bytes[..options_len]);
-            });
-        }
+        self.options.map(|bytes| {
+            let options_len = packet.options_len();
+            packet.options_mut()[..options_len].copy_from_slice(&bytes[..options_len]);
+        });
 
         if checksum_caps.ipv4.tx() {
             packet.fill_checksum();
