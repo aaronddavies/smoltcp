@@ -673,7 +673,9 @@ impl Repr {
         packet.set_dst_addr(self.dst_addr);
 
         let options_len = packet.options_len();
-        packet.options_mut()[..options_len].copy_from_slice(&self.options[..options_len]);
+        if options_len > 0 {
+            packet.options_mut()[..options_len].copy_from_slice(&self.options[..options_len]);
+        }
 
         if checksum_caps.ipv4.tx() {
             packet.fill_checksum();
