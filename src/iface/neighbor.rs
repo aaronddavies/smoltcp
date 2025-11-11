@@ -34,7 +34,7 @@ impl Neighbor {
 /// An answer to a neighbor cache lookup.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub(crate) enum Answer {
+pub enum Answer {
     /// The neighbor address is in the cache and not expired.
     Found(HardwareAddress),
     /// The neighbor address is not in the cache, or has expired.
@@ -46,7 +46,7 @@ pub(crate) enum Answer {
 
 impl Answer {
     /// Returns whether a valid address was found.
-    pub(crate) fn found(&self) -> bool {
+    pub fn found(&self) -> bool {
         match self {
             Answer::Found(_) => true,
             _ => false,
@@ -76,6 +76,12 @@ impl Cache {
         }
     }
 
+    /// Resets the expiration time of an existing neighbor entry.
+    ///
+    /// If the cache contains an entry for the given protocol address with a matching
+    /// hardware address, its expiration time is reset to the default lifetime from
+    /// the current timestamp. If the hardware address doesn't match or the entry
+    /// doesn't exist, this function does nothing.
     pub fn reset_expiry_if_existing(
         &mut self,
         protocol_addr: IpAddress,
@@ -93,6 +99,10 @@ impl Cache {
         }
     }
 
+    /// Adds or updates a neighbor entry in the cache.
+    ///
+    /// The entry will expire after the default lifetime (60 seconds) from the given timestamp.
+    /// If the cache is full, the entry with the earliest expiration time will be evicted.
     pub fn fill(
         &mut self,
         protocol_addr: IpAddress,
@@ -106,6 +116,11 @@ impl Cache {
         self.fill_with_expiration(protocol_addr, hardware_addr, expires_at);
     }
 
+    /// Adds or updates a neighbor entry with a custom expiration time.
+    ///
+    /// This is similar to `fill()` but allows specifying a custom expiration time
+    /// instead of using the default lifetime. If the cache is full, the entry with
+    /// the earliest expiration time will be evicted.
     pub fn fill_with_expiration(
         &mut self,
         protocol_addr: IpAddress,
@@ -160,7 +175,12 @@ impl Cache {
         }
     }
 
-    pub(crate) fn lookup(&self, protocol_addr: &IpAddress, timestamp: Instant) -> Answer {
+    /// Looks up a neighbor entry in the cache.
+    ///
+    /// Returns `Answer::Found` with the hardware address if the entry exists and hasn't expired,
+    /// `Answer::RateLimited` if a lookup was recently performed and rate limiting is active,
+    /// or `Answer::NotFound` if the entry doesn't exist or has expired.
+    pub fn lookup(&self, protocol_addr: &IpAddress, timestamp: Instant) -> Answer {
         assert!(protocol_addr.is_unicast());
 
         if let Some(&Neighbor {
