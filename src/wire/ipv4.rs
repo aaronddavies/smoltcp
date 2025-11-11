@@ -713,6 +713,12 @@ impl Repr {
             Err(Error)
         }
     }
+    
+    /// Return the length of the options included in the header that will be emitted from this
+    /// high-level representation.
+    pub const fn options_len(&self) -> usize {
+        self.header_len - HEADER_LEN
+    }
 }
 
 impl<T: AsRef<[u8]> + ?Sized> fmt::Display for Packet<&T> {
