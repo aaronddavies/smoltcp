@@ -1002,8 +1002,7 @@ fn check_no_reply_raw_socket(medium: Medium, frame: &crate::wire::ipv4::Packet<&
 #[cfg(all(feature = "socket-raw", feature = "medium-ethernet"))]
 /// Test raw socket will process options to receiving device
 fn test_raw_socket_process_with_option(#[case] medium: Medium) {
-    const PACKET_SIZE: usize = 34;
-    const PACKET_BYTES: [u8; PACKET_SIZE] = [
+    const PACKET_BYTES: &[u8] = &[
         0x46, 0x21, 0x00, 0x22, 0x01, 0x02, 0x40, 0x00, 0x1a, 0x01, 0x13, 0xf0, 0x11, 0x12, 0x13,
         0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
         0x88, 0x02, 0x5a, 0x5a, // Stream Identifier option
@@ -1014,14 +1013,14 @@ fn test_raw_socket_process_with_option(#[case] medium: Medium) {
 
     let (mut iface, mut sockets, _) = setup(medium);
 
-    let packets = 1;
+    let packet_count = 1;
     let rx_buffer = raw::PacketBuffer::new(
-        vec![raw::PacketMetadata::EMPTY; packets],
-        vec![0; 48 * packets],
+        vec![raw::PacketMetadata::EMPTY; packet_count],
+        vec![0; PACKET_BYTES.len()],
     );
     let tx_buffer = raw::PacketBuffer::new(
-        vec![raw::PacketMetadata::EMPTY; packets],
-        vec![0; 48 * packets],
+        vec![raw::PacketMetadata::EMPTY; packet_count],
+        vec![0; PACKET_BYTES.len()],
     );
     let raw_socket = raw::Socket::new(Some(IpVersion::Ipv4), None, rx_buffer, tx_buffer);
     let handle = sockets.add(raw_socket);
@@ -1035,7 +1034,7 @@ fn test_raw_socket_process_with_option(#[case] medium: Medium) {
     );
     assert_eq!(result, None);
     let socket = sockets.get::<raw::Socket>(handle);
-    assert_eq!(socket.recv_queue(), PACKET_SIZE);
+    assert_eq!(socket.recv_queue(), PACKET_BYTES.len());
 }
 
 #[rstest]
