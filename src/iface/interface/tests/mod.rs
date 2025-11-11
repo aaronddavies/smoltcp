@@ -18,6 +18,8 @@ use crate::phy::ChecksumCapabilities;
 #[cfg(feature = "alloc")]
 use crate::phy::Loopback;
 use crate::time::Instant;
+#[cfg(all(feature = "proto-ipv4", feature = "medium-ethernet"))]
+use crate::wire::{ArpOperation, ArpPacket, ArpRepr, Ipv4Address};
 
 #[allow(unused)]
 fn fill_slice(s: &mut [u8], val: u8) {
@@ -247,7 +249,7 @@ pub fn tcp_not_accepted() {
 
 #[rstest]
 #[case(Medium::Ethernet)]
-#[cfg(feature = "medium-ethernet")]
+#[cfg(all(feature = "medium-ethernet", feature = "proto-ipv4"))]
 fn test_manual_arp_request(#[case] medium: Medium) {
     // Set up the interface and mock device
     let (mut iface, _, mut device) = setup(medium);
