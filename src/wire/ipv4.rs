@@ -379,20 +379,24 @@ impl<T: AsRef<[u8]>> Packet<T> {
         Address::from_bytes(&data[field::DST_ADDR])
     }
 
-    /// Return true if options are included.
+    /// Return true if options exist according to the header length.
     #[inline]
     pub fn has_options(&self) -> bool {
         self.header_len() as usize > HEADER_LEN
     }
 
-    /// Return the options. If there are none, an empty slice is returned.
+    /// Return a reference to the options if the field exists according to the header length.
     #[inline]
-    pub fn options(&self) -> &[u8] {
-        let data = self.buffer.as_ref();
-        &data[field::OPTIONS_START..self.header_len() as usize]
+    pub fn options(&self) -> Option<&[u8]> {
+        if self.has_options() {
+            let data = self.buffer.as_ref();
+            Some(&data[field::OPTIONS_START..self.header_len() as usize])
+        } else {
+            None
+        }
     }
 
-    /// Return the length of the options.
+    /// Return the length of the options field as calculated from the header length.
     #[inline]
     pub fn options_len(&self) -> usize {
         self.header_len() as usize - HEADER_LEN
@@ -562,13 +566,23 @@ impl<T: AsRef<[u8]> + AsMut<[u8]>> Packet<T> {
         &mut data[range]
     }
 
-    /// Return a mutable pointer to the options. An empty slice is returned if
-    /// no options are present.
+    /// Return a mutable pointer to the options if they are present according to the header length.
     #[inline]
-    pub fn options_mut(&mut self) -> &mut [u8] {
-        let range = field::OPTIONS_START..self.header_len() as usize;
+    pub fn options_mut(&mut self) -> Option<&mut [u8]> {
+        if self.has_options() {
+            let range = field::OPTIONS_START..self.header_len() as usize;
+            let data = self.buffer.as_mut();
+            Some(&mut data[range])
+        } else {
+            None
+        }
+    }
+
+    /// Set options without checking if the input is sized properly or if the header length is
+    /// appropriate.
+    pub fn set_options_unchecked(&mut self, options: &[u8]) {
         let data = self.buffer.as_mut();
-        &mut data[range]
+        data[HEADER_LEN..HEADER_LEN + options.len()].copy_from_slice(options);
     }
 }
 
@@ -626,7 +640,9 @@ impl Repr {
         // All TTL values are acceptable, since we do not perform routing.
 
         let mut options = [0u8; MAX_OPTIONS_SIZE];
-        options[..packet.options_len()].copy_from_slice(packet.options());
+        if let Some(bytes) = packet.options() {
+            options[..packet.options_len()].copy_from_slice(bytes);
+        }
 
         Ok(Repr {
             src_addr: packet.src_addr(),
@@ -672,10 +688,7 @@ impl Repr {
         packet.set_src_addr(self.src_addr);
         packet.set_dst_addr(self.dst_addr);
 
-        let options_len = packet.options_len();
-        if options_len > 0 {
-            packet.options_mut()[..options_len].copy_from_slice(&self.options[..options_len]);
-        }
+        packet.set_options_unchecked(&self.options[..packet.options_len()]);
 
         if checksum_caps.ipv4.tx() {
             packet.fill_checksum();
@@ -859,16 +872,16 @@ pub(crate) mod test {
         packet.payload_mut().copy_from_slice(&PAYLOAD_BYTES[..]);
         assert_eq!(&*packet.into_inner(), &PACKET_BYTES[..]);
     }
-    static OPTION_PACKET_BYTES: [u8; 34] = [
+    const OPTION_PACKET_BYTES: [u8; 34] = [
         0x46, 0x21, 0x00, 0x22, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xf1, 0xec, 0x11, 0x12, 0x13,
         0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
         0x88, 0x02, 0x5a, 0x5a, // Stream Identifier option
         0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload
     ];
 
-    static OPTION_BYTES: [u8; 4] = [0x88, 0x02, 0x5a, 0x5a];
+    const OPTION_BYTES: [u8; 4] = [0x88, 0x02, 0x5a, 0x5a];
 
-    static OPTION_PAYLOAD_BYTES: [u8; 10] =
+    const OPTION_PAYLOAD_BYTES: [u8; 10] =
         [0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff];
 
     #[test]
@@ -910,7 +923,7 @@ pub(crate) mod test {
         packet.set_next_header(Protocol::Icmp);
         packet.set_src_addr(Address::new(0x11, 0x12, 0x13, 0x14));
         packet.set_dst_addr(Address::new(0x21, 0x22, 0x23, 0x24));
-        packet.options_mut().copy_from_slice(&OPTION_BYTES[..]);
+        packet.set_options_unchecked(&OPTION_BYTES[..]);
         packet.fill_checksum();
         packet
             .payload_mut()
