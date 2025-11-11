@@ -38,6 +38,10 @@ pub const MULTICAST_ALL_ROUTERS: Address = Address::new(224, 0, 0, 2);
 /// 0xF * 4 - HEADER_LEN == 40
 pub const MAX_OPTIONS_SIZE: usize = 40;
 
+/// Size of 32 bits in octets for alignment within the header. The header length must be a multiple
+/// of this value.
+pub const ALIGNMENT_32_BITS: usize = 4;
+
 #[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Key {
@@ -267,7 +271,7 @@ impl<T: AsRef<[u8]>> Packet<T> {
             Err(Error)
         } else if len < self.total_len() as usize {
             Err(Error)
-        } else if self.header_len() % 4 != 0 {
+        } else if self.header_len() as usize % ALIGNMENT_32_BITS != 0 {
             Err(Error)
         } else if self.header_len() as usize > HEADER_LEN + MAX_OPTIONS_SIZE {
             Err(Error)
