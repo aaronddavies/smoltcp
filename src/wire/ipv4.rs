@@ -685,6 +685,17 @@ impl Repr {
             packet.set_checksum(0);
         }
     }
+
+    /// Write options. Result is ok if input is sized properly.
+    pub fn set_options(&mut self, options: &[u8]) -> Result<()> {
+        if options.len() <= MAX_OPTIONS_SIZE && options.len() % 4 == 0 {
+            self.options[..options.len()].copy_from_slice(options);
+            self.header_len = HEADER_LEN + options.len();
+            Ok(())
+        } else {
+            Err(Error)
+        }
+    }
 }
 
 impl<T: AsRef<[u8]> + ?Sized> fmt::Display for Packet<&T> {
@@ -991,6 +1002,16 @@ pub(crate) mod test {
                 ]
             }
         );
+    }
+
+    #[test]
+    fn test_manually_adding_options() {
+        let packet = Packet::new_unchecked(&REPR_PACKET_BYTES[..]);
+        let mut repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+        assert!(repr.set_options(&[]).is_ok());
+        assert!(repr.set_options(&[0x0]).is_err());
+        assert!(repr.set_options(&[0x0, 0x0, 0x0, 0x0]).is_ok());
+        assert!(repr.set_options(&[0u8; 42]).is_err());
     }
 
     #[test]
