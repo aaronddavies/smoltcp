@@ -1033,8 +1033,9 @@ fn test_raw_socket_process_with_option(#[case] medium: Medium) {
         &mut iface.fragments,
     );
     assert_eq!(result, None);
-    let socket = sockets.get::<raw::Socket>(handle);
+    let socket = sockets.get_mut::<raw::Socket>(handle);
     assert_eq!(socket.recv_queue(), PACKET_BYTES.len());
+    assert_eq!(socket.recv().unwrap(), PACKET_BYTES);
 }
 
 #[rstest]
