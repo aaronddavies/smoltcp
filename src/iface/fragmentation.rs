@@ -446,11 +446,13 @@ impl Ipv4Fragmenter {
         // length octet in the last alignment, then we can safely dismiss the remaining octets in
         // the alignment. They must be either further padding or otherwise invalid. If there is a
         // length octet, then we will process the entire alignment.
-        while i_read < (options_len + 1) - ALIGNMENT_32_BITS {
+        let last_alignment = (options_len + 1) - ALIGNMENT_32_BITS;
+        while i_read < last_alignment {
             // Parse the type octet to get our instructions for this option.
             let type_octet = source[i_read];
             let (is_copied, has_length_octet) = Self::parse_option_type_octet(type_octet);
             if has_length_octet {
+                // Parse the length octet.
                 let length = source[i_read + 1] as usize;
                 // Safely copy the option based on its length.
                 if is_copied && i_write + length < options_len && i_read + length < options_len {
@@ -469,14 +471,16 @@ impl Ipv4Fragmenter {
                     i_read += 1;
                 }
             }
+            // Options without a length octet indicate padding. Padding is handled once the writing
+            // of the option is complete, and therefore never directly copied from the reading.
         }
         // Assign the new header length.
         self.repr.header_len = i_write + HEADER_LEN;
-        // Copy the new options. Copy the entire length to zero out the remainder and indicate the
-        // end of the options list, if necessary.
+        // Copy the new options. Copy the entire length of the source to zero out the remainder,
+        // and indicate the end of the options list, if necessary.
         self.repr.set_options(&dest[..]);
         // Update header checksum.
-
+        // TODO
     }
 }
 
