@@ -9,7 +9,7 @@ use crate::storage::Assembler;
 use crate::time::{Duration, Instant};
 use crate::wire::*;
 
-use crate::wire::ipv4::MAX_OPTIONS_SIZE;
+use crate::wire::ipv4::{ALIGNMENT_32_BITS, HEADER_LEN, MAX_OPTIONS_SIZE};
 use core::result::Result;
 
 #[cfg(feature = "alloc")]
@@ -410,6 +410,73 @@ impl Fragmenter {
             self.sixlowpan.ll_dst_addr = Ieee802154Address::Absent;
             self.sixlowpan.ll_src_addr = Ieee802154Address::Absent;
         }
+    }
+}
+
+#[cfg(feature = "_proto-fragmentation")]
+impl Ipv4Fragmenter {
+
+    /// Determines two characteristics of the option from the type octet.
+    /// Returns (copy_flag, has_length_octet)
+    /// copy_flag: If true, this option is to be copied for all fragments. If false, this option
+    ///   should not be copied, and should only be sent with the first fragment.
+    /// has_length_octet: If true, the option octet is followed by a length octet. If false, the
+    ///   option is of single octet length.
+    fn parse_option_type_octet(type_octet: u8) -> (bool, bool) {
+        match type_octet {
+            0 => (false, false),
+            1 => (false, false),
+            7 => (false, true),
+            68 => (false, true),
+            130 => (true, true),
+            131 => (true, true),
+            136 => (true, true),
+            137 => (true, true),
+            _ => (false, false),  // invalid option type octet
+        }
+    }
+
+    pub(crate) fn filter_options(&mut self) {
+        let options_len = self.repr.header_len - HEADER_LEN;
+        let source: &[u8; 40] = &self.repr.options;
+        let mut i_read: usize = 0;
+        let dest: &mut [u8; 40] = &mut [0u8; MAX_OPTIONS_SIZE];
+        let mut i_write: usize = 0;
+        // We can safely read only until the beginning of the last alignment. If there is no
+        // length octet in the last alignment, then we can safely dismiss the remaining octets in
+        // the alignment. They must be either further padding or otherwise invalid. If there is a
+        // length octet, then we will process the entire alignment.
+        while i_read < (options_len + 1) - ALIGNMENT_32_BITS {
+            // Parse the type octet to get our instructions for this option.
+            let type_octet = source[i_read];
+            let (is_copied, has_length_octet) = Self::parse_option_type_octet(type_octet);
+            if has_length_octet {
+                let length = source[i_read + 1] as usize;
+                // Safely copy the option based on its length.
+                if is_copied && i_write + length < options_len && i_read + length < options_len {
+                    dest[i_write..i_write + length].copy_from_slice(&source[i_read..i_read + length]);
+                    // Advance the write pointer.
+                    i_write += length;
+                    // If necessary, safely pad the remainder of the alignment in the destination.
+                    while i_write % 4 != 0 && i_write < MAX_OPTIONS_SIZE {
+                        dest[i_write] = 0x1;
+                        i_write += 1;
+                    }
+                }
+                // Advance the read pointer to the next alignment.
+                i_read += length;
+                while i_read % 4 != 0 {
+                    i_read += 1;
+                }
+            }
+        }
+        // Assign the new header length.
+        self.repr.header_len = i_write + HEADER_LEN;
+        // Copy the new options. Copy the entire length to zero out the remainder and indicate the
+        // end of the options list, if necessary.
+        self.repr.set_options(&dest[..]);
+        // Update header checksum.
+
     }
 }
 
