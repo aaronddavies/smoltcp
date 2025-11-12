@@ -1410,6 +1410,119 @@ fn test_raw_socket_tx_fragmentation(#[case] medium: Medium) {
 }
 
 #[rstest]
+#[cfg(all(feature = "socket-raw", feature = "medium-ip", feature = "proto-ipv4-fragmentation",))]
+fn test_raw_socket_tx_fragmentation_with_options() {
+    // Form the socket.
+
+    let (mut iface, mut sockets, device) = setup(Medium::Ip);
+    let mtu: usize = device.capabilities().max_transmission_unit;
+
+    let packets: usize = 5;
+    let rx_buffer = raw::PacketBuffer::new(
+        vec![raw::PacketMetadata::EMPTY; packets],
+        vec![0; mtu * packets],
+    );
+    let tx_buffer = raw::PacketBuffer::new(
+        vec![raw::PacketMetadata::EMPTY; packets],
+        vec![0; mtu * packets],
+    );
+    let socket = raw::Socket::new(
+        Some(IpVersion::Ipv4),
+        Some(IpProtocol::Udp),
+        rx_buffer,
+        tx_buffer,
+    );
+    let _handle = sockets.add(socket);
+
+    // Form the packet to be sent.
+
+    let packet_size = mtu * 5 / 4; // Larger than MTU, requires fragmentation
+    let payload_len = packet_size - IPV4_HEADER_LEN as usize;
+    let payload = vec![0xa5u8; payload_len];
+
+    let mut ip_repr = Ipv4Repr {
+        src_addr: Ipv4Address::new(192, 168, 1, 3),
+        dst_addr: Ipv4Address::BROADCAST,
+        next_header: IpProtocol::Unknown(92),
+        header_len: IPV4_HEADER_LEN,
+        ident: 0,
+        dont_frag: false,
+        more_frags: false,
+        frag_offset: 0,
+        hop_limit: 64,
+        payload_len,
+        dscp: 0,
+        ecn: 0,
+        options: [0u8; MAX_OPTIONS_SIZE],
+    };
+
+    const OPTIONS_BYTES: [u8; 12] = [
+        0x07, 0x07, 0x04, 0x01, 0x02, 0x03, 0x04, // Route Record
+        0x01, // Padding
+        0x88, 0x04, 0x5a, 0x5a, // Stream Identifier option
+    ];
+
+    ip_repr.set_options(&OPTIONS_BYTES).unwrap();
+    let ip_payload = IpPayload::Raw(&payload);
+    let packet = Packet::new_ipv4(ip_repr, ip_payload);
+
+    // Define test tokens for capturing the fragments.
+
+    struct TestFirstFragmentTxToken {
+    }
+
+    // The first fragment should have all the options.
+    impl TxToken for TestFirstFragmentTxToken {
+        fn consume<R, F>(self, len: usize, f: F) -> R
+        where
+            F: FnOnce(&mut [u8]) -> R,
+        {
+            // Buffer is something arbitrarily large.
+            // We cannot capture the dynamic packet_size calculation here.
+            let mut buffer = [0; 2048];
+            let result = f(&mut buffer[..len]);
+            let option_end = IPV4_HEADER_LEN + OPTIONS_BYTES.len();
+            assert_eq!(buffer[IPV4_HEADER_LEN..option_end], OPTIONS_BYTES);
+            result
+        }
+    }
+
+    struct TestSecondFragmentTxToken {
+    }
+
+    // The second fragment should only have the stream ID.
+    impl TxToken for TestSecondFragmentTxToken {
+        fn consume<R, F>(self, len: usize, f: F) -> R
+        where
+            F: FnOnce(&mut [u8]) -> R,
+        {
+            let mut buffer = [0; 2048];
+            let result = f(&mut buffer[..len]);
+            let stream_id = [0x88, 0x04, 0x5a, 0x5a];
+            let option_end = IPV4_HEADER_LEN + stream_id.len();
+            assert_ne!(buffer[IPV4_HEADER_LEN..option_end], OPTIONS_BYTES);
+            assert_eq!(buffer[IPV4_HEADER_LEN..option_end], stream_id);
+            result
+        }
+    }
+
+    let result =
+    iface.inner.dispatch_ip(
+        TestFirstFragmentTxToken {},
+        PacketMeta::default(),
+        packet,
+        &mut iface.fragmenter,
+    );
+    assert!(result.is_ok());
+
+    iface.inner.dispatch_ipv4_frag(
+        TestSecondFragmentTxToken {},
+        &mut iface.fragmenter
+    );
+}
+
+
+#[rstest]
 #[case(Medium::Ip)]
 #[cfg(all(
     feature = "socket-raw",
