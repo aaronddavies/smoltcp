@@ -623,6 +623,7 @@ mod tests {
         let mut frag = Fragmenter::new();
         frag.ipv4.repr = repr;
         frag.ipv4.filter_options();
+        // The stream id remains. Each fragment header is identical.
         assert_eq!(repr, frag.ipv4.repr);
         assert_eq!(frag.ipv4.repr.payload_len, 10);
         assert_eq!(frag.ipv4.repr.header_len, PACKET_BYTES.len() - 10);
@@ -645,6 +646,7 @@ mod tests {
         assert_ne!(repr, frag.ipv4.repr);
         assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN);
         assert_eq!(frag.ipv4.repr.payload_len, 10);
+        // The route record is discarded in all further fragments.
         assert_eq!(frag.ipv4.repr.options, [0u8; MAX_OPTIONS_SIZE]);
     }
 
@@ -666,6 +668,7 @@ mod tests {
         assert_ne!(repr, frag.ipv4.repr);
         assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 4);  // stream id only in options
         assert_eq!(frag.ipv4.repr.payload_len, 10);
+        // The route record is discarded and only the stream id persists to all fragments.
         assert_eq!(frag.ipv4.repr.options,[
             0x88, 0x04, 0x5a, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
@@ -694,6 +697,7 @@ mod tests {
         assert_ne!(repr, frag.ipv4.repr);
         assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 4);  // stream id only in options
         assert_eq!(frag.ipv4.repr.payload_len, 10);
+        // The route record is discarded and only the stream id persists to all fragments.
         assert_eq!(frag.ipv4.repr.options,[
             0x88, 0x04, 0x5a, 0x5a, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
