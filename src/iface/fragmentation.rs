@@ -424,20 +424,26 @@ impl Ipv4Fragmenter {
     ///   option is of single octet length.
     fn parse_option_type_octet(type_octet: u8) -> (bool, bool) {
         match type_octet {
-            0 => (false, false),
-            1 => (false, false),
-            7 => (false, true),
-            68 => (false, true),
-            130 => (true, true),
-            131 => (true, true),
-            136 => (true, true),
-            137 => (true, true),
+            // copy_flag, has_length_octet
+            0 => (false, false),  // End of Option List
+            1 => (false, false),  // No Operation
+            7 => (false, true),   // Record Route
+            68 => (false, true),  // Internet Timestamp
+            130 => (true, true),  // Security
+            131 => (true, true),  // Loose Source and Record Route
+            136 => (true, true),  // Stream Identifier
+            137 => (true, true),  // Strict Source and Record Route
             _ => (false, false),  // invalid option type octet
         }
     }
 
     pub(crate) fn filter_options(&mut self) {
         let options_len = self.repr.header_len - HEADER_LEN;
+        // Guard to have at least one properly sized option
+        if (options_len < ALIGNMENT_32_BITS) {
+            return;
+        }
+        // Initialize read and write pointers
         let source: &[u8; 40] = &self.repr.options;
         let mut i_read: usize = 0;
         let dest: &mut [u8; 40] = &mut [0u8; MAX_OPTIONS_SIZE];
@@ -479,8 +485,6 @@ impl Ipv4Fragmenter {
         // Copy the new options. Copy the entire length of the source to zero out the remainder,
         // and indicate the end of the options list, if necessary.
         self.repr.set_options(&dest[..]);
-        // Update header checksum.
-        // TODO
     }
 }
 
