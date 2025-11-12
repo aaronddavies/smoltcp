@@ -480,8 +480,8 @@ impl Ipv4Fragmenter {
             // Options without a length octet indicate padding. Padding is handled once the writing
             // of the option is complete, and therefore never directly copied from the reading.
         }
-        // Copy the new options. Copy the entire length of the source to zero out the remainder,
-        // and indicate the end of the options list, if necessary.
+        // Zero the options buffer, and then write the new option set.
+        self.repr.set_options(&[0u8; MAX_OPTIONS_SIZE]);
         self.repr.set_options(&dest[..i_write]);
     }
 }
@@ -624,6 +624,25 @@ mod tests {
         frag.ipv4.repr = repr;
         frag.ipv4.filter_options();
         assert_eq!(repr, frag.ipv4.repr);
-        assert_eq!(frag.ipv4.repr.header_len, 24);
+        assert_eq!(frag.ipv4.repr.header_len, PACKET_BYTES.len() - 10);
+    }
+
+    #[test]
+    fn filter_options_one_discarded_option_present() {
+        const PACKET_BYTES: [u8; 38] = [
+            0x47, 0x21, 0x00, 0x22, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xc2, 0x3d, 0x11, 0x12, 0x13,
+            0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
+            0x07, 0x07, 0x04, 0x01, 0x02, 0x03, 0x04, // Route Record
+            0x01, // Padding
+            0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload
+        ];
+        let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
+        let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+        let mut frag = Fragmenter::new();
+        frag.ipv4.repr = repr;
+        frag.ipv4.filter_options();
+        assert_ne!(repr, frag.ipv4.repr);
+        assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN);
+        assert_eq!(frag.ipv4.repr.options, [0u8; MAX_OPTIONS_SIZE]);
     }
 }
