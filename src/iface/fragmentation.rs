@@ -595,4 +595,19 @@ mod tests {
         assr.add(&[0x01], 1).unwrap();
         assert_eq!(assr.assemble(), Some(&[0x00, 0x01][..]));
     }
+
+    #[test]
+    fn filter_options_no_options_present() {
+        const PACKET_BYTES: [u8; 30] = [
+            0x45, 0x21, 0x00, 0x1e, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xd5, 0x4d, 0x11, 0x12, 0x13,
+            0x14, 0x21, 0x22, 0x23, 0x24, 0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff,
+        ];
+        let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
+        let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+        let mut frag = Fragmenter::new();
+        frag.ipv4.repr = repr;
+        frag.ipv4.filter_options();
+        assert_eq!(repr, frag.ipv4.repr);
+    }
+
 }
