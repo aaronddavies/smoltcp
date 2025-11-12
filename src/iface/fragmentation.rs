@@ -452,8 +452,8 @@ impl Ipv4Fragmenter {
         // length octet in the last alignment, then we can safely dismiss the remaining octets in
         // the alignment. They must be either further padding or otherwise invalid. If there is a
         // length octet, then we will process the entire alignment.
-        let last_alignment = (options_len + 1) - ALIGNMENT_32_BITS;
-        while i_read < last_alignment {
+        let last_alignment = options_len - ALIGNMENT_32_BITS;
+        while i_read <= last_alignment {
             // Parse the type octet to get our instructions for this option.
             let type_octet = source[i_read];
             let (is_copied, has_length_octet) = Self::parse_option_type_octet(type_octet);
@@ -461,7 +461,7 @@ impl Ipv4Fragmenter {
                 // Parse the length octet.
                 let length = source[i_read + 1] as usize;
                 // Safely copy the option based on its length.
-                if is_copied && i_write + length < options_len && i_read + length < options_len {
+                if is_copied && i_write + length <= options_len && i_read + length <= options_len {
                     dest[i_write..i_write + length].copy_from_slice(&source[i_read..i_read + length]);
                     // Advance the write pointer.
                     i_write += length;
@@ -480,16 +480,16 @@ impl Ipv4Fragmenter {
             // Options without a length octet indicate padding. Padding is handled once the writing
             // of the option is complete, and therefore never directly copied from the reading.
         }
-        // Assign the new header length.
-        self.repr.header_len = i_write + HEADER_LEN;
         // Copy the new options. Copy the entire length of the source to zero out the remainder,
         // and indicate the end of the options list, if necessary.
-        self.repr.set_options(&dest[..]);
+        self.repr.set_options(&dest[..i_write]);
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use crate::phy::ChecksumCapabilities;
+    use crate::wire::ipv4::{Packet, Repr};
     use super::*;
 
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -610,4 +610,20 @@ mod tests {
         assert_eq!(repr, frag.ipv4.repr);
     }
 
+    #[test]
+    fn filter_options_one_persisted_option_present() {
+        const PACKET_BYTES: [u8; 34] = [
+            0x46, 0x21, 0x00, 0x22, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xf1, 0xea, 0x11, 0x12, 0x13,
+            0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
+            0x88, 0x04, 0x5a, 0x5a, // Stream Identifier option
+            0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload
+        ];
+        let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
+        let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+        let mut frag = Fragmenter::new();
+        frag.ipv4.repr = repr;
+        frag.ipv4.filter_options();
+        assert_eq!(repr, frag.ipv4.repr);
+        assert_eq!(frag.ipv4.repr.header_len, 24);
+    }
 }
