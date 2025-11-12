@@ -1461,6 +1461,14 @@ fn test_raw_socket_rx_fragmentation(#[case] medium: Medium) {
             next_header: proto,
             hop_limit: 64,
             payload_len,
+            header_len: IPV4_HEADER_LEN,
+            dscp: 0,
+            ecn: 0,
+            ident: 0,
+            dont_frag: false,
+            more_frags: false,
+            frag_offset: 0,
+            options: [0u8; MAX_OPTIONS_SIZE],
         };
         let header_len = repr.buffer_len();
         let mut bytes = vec![0u8; header_len + payload_len];
