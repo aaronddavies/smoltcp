@@ -1365,6 +1365,9 @@ impl InterfaceInner {
                             // Change the offset for the next packet.
                             frag.ipv4.frag_offset = (first_frag_ip_len - ip_header_len) as u16;
 
+                            // Filter the options for the remaining packets.
+                            frag.ipv4.filter_options();
+
                             // Copy the IP header and the payload.
                             tx_buffer[..first_frag_ip_len]
                                 .copy_from_slice(&frag.buffer[..first_frag_ip_len]);
