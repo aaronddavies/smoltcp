@@ -422,19 +422,11 @@ impl Ipv4Fragmenter {
     ///   should not be copied, and should only be sent with the first fragment.
     /// has_length_octet: If true, the option octet is followed by a length octet. If false, the
     ///   option is of single octet length.
+    /// Reference: https://www.iana.org/assignments/ip-parameters/ip-parameters.xhtml#ip-parameters-1
     fn parse_option_type_octet(type_octet: u8) -> (bool, bool) {
-        match type_octet {
-            // copy_flag, has_length_octet
-            0 => (false, false),  // End of Option List
-            1 => (false, false),  // No Operation
-            7 => (false, true),   // Record Route
-            68 => (false, true),  // Internet Timestamp
-            130 => (true, true),  // Security
-            131 => (true, true),  // Loose Source and Record Route
-            136 => (true, true),  // Stream Identifier
-            137 => (true, true),  // Strict Source and Record Route
-            _ => (false, false),  // invalid option type octet
-        }
+        let copy_flag: bool = type_octet & 0x80 == 0x80;
+        let has_length_octet = type_octet != 0x00 && type_octet != 0x01;
+        (copy_flag, has_length_octet)
     }
 
     pub(crate) fn filter_options(&mut self) {
