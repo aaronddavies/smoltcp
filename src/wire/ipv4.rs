@@ -1038,6 +1038,20 @@ pub(crate) mod test {
     }
 
     #[test]
+    fn test_parse_bad_option_no_padding() {
+        // Checksum is correct, length indicates packet should be 38 octets.
+        const PACKET_BYTES: [u8; 37] = [
+            0x47, 0x21, 0x00, 0x22, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xc2, 0x3e, 0x11, 0x12, 0x13,
+            0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
+            0x07, 0x07, 0x04, 0x01, 0x02, 0x03, 0x04, // Route Record, missing pad byte at end
+            0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload
+        ];
+        let packet = Packet::new_unchecked(&PACKET_BYTES[..]);
+        let repr = Repr::parse(&packet, &ChecksumCapabilities::default());
+        assert!(repr.is_err());
+    }
+
+    #[test]
     fn test_parse_bad_version() {
         let mut bytes = vec![0; 24];
         bytes.copy_from_slice(&REPR_PACKET_BYTES[..]);
