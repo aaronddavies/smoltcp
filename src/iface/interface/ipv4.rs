@@ -163,6 +163,7 @@ impl InterfaceInner {
         // parsed the current packet.
         if let Err(e) = ipv4_repr.set_options(&frag.options_buffer[..frag.options_len]) {
             net_debug!("fragmentation assembler options error: {:?}", e);
+            return None;
         }
 
         let ip_repr = IpRepr::Ipv4(ipv4_repr);
