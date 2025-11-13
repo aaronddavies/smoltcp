@@ -428,7 +428,8 @@ impl Ipv4Fragmenter {
     /// Reference: https://www.iana.org/assignments/ip-parameters/ip-parameters.xhtml#ip-parameters-1
     fn parse_option_type_octet(type_octet: u8) -> (bool, bool) {
         let copy_flag: bool = type_octet & 0x80 == 0x80;
-        let has_length_octet = type_octet != OPTION_TYPE_PADDING && type_octet != OPTION_TYPE_NO_OPERATION;
+        let has_length_octet =
+            type_octet != OPTION_TYPE_PADDING && type_octet != OPTION_TYPE_NO_OPERATION;
         (copy_flag, has_length_octet)
     }
 
@@ -477,7 +478,8 @@ impl Ipv4Fragmenter {
             // of the option is complete, and therefore never directly copied from the reading.
         }
         // Zero the options buffer, and then write the new option set.
-        self.repr.set_options(&[OPTION_TYPE_PADDING; MAX_OPTIONS_SIZE]);
+        self.repr
+            .set_options(&[OPTION_TYPE_PADDING; MAX_OPTIONS_SIZE]);
         self.repr.set_options(&dest[..i_write]);
     }
 }

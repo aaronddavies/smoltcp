@@ -1410,7 +1410,11 @@ fn test_raw_socket_tx_fragmentation(#[case] medium: Medium) {
 }
 
 #[rstest]
-#[cfg(all(feature = "socket-raw", feature = "medium-ip", feature = "proto-ipv4-fragmentation",))]
+#[cfg(all(
+    feature = "socket-raw",
+    feature = "medium-ip",
+    feature = "proto-ipv4-fragmentation",
+))]
 fn test_raw_socket_tx_fragmentation_with_options() {
     // Form the socket.
 
@@ -1468,8 +1472,7 @@ fn test_raw_socket_tx_fragmentation_with_options() {
 
     // Define test tokens for capturing the fragments.
 
-    struct TestFirstFragmentTxToken {
-    }
+    struct TestFirstFragmentTxToken {}
 
     // The first fragment should have all the options.
     impl TxToken for TestFirstFragmentTxToken {
@@ -1487,8 +1490,7 @@ fn test_raw_socket_tx_fragmentation_with_options() {
         }
     }
 
-    struct TestSecondFragmentTxToken {
-    }
+    struct TestSecondFragmentTxToken {}
 
     // The second fragment should only have the stream ID.
     impl TxToken for TestSecondFragmentTxToken {
@@ -1506,8 +1508,7 @@ fn test_raw_socket_tx_fragmentation_with_options() {
         }
     }
 
-    let result =
-    iface.inner.dispatch_ip(
+    let result = iface.inner.dispatch_ip(
         TestFirstFragmentTxToken {},
         PacketMeta::default(),
         packet,
@@ -1515,12 +1516,10 @@ fn test_raw_socket_tx_fragmentation_with_options() {
     );
     assert!(result.is_ok());
 
-    iface.inner.dispatch_ipv4_frag(
-        TestSecondFragmentTxToken {},
-        &mut iface.fragmenter
-    );
+    iface
+        .inner
+        .dispatch_ipv4_frag(TestSecondFragmentTxToken {}, &mut iface.fragmenter);
 }
-
 
 #[rstest]
 #[case(Medium::Ip)]
