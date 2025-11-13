@@ -1637,7 +1637,7 @@ fn test_raw_socket_rx_fragmentation(#[case] medium: Medium) {
                           more_frags: bool,
                           frag_offset_octets: u16,
                           payload_byte: u8,
-                          options: &[u8],|
+                          options: &[u8]|
      -> Vec<u8> {
         let mut repr = Ipv4Repr {
             src_addr,
@@ -1677,7 +1677,13 @@ fn test_raw_socket_rx_fragmentation(#[case] medium: Medium) {
     };
 
     let frag1_bytes = build_fragment(first_payload_len, true, 0, 0xAA, &OPTIONS_BYTES[..]);
-    let frag2_bytes = build_fragment(last_payload_len, false, first_payload_len as u16, 0xBB, &OPTIONS_BYTES[8..]);
+    let frag2_bytes = build_fragment(
+        last_payload_len,
+        false,
+        first_payload_len as u16,
+        0xBB,
+        &OPTIONS_BYTES[8..],
+    );
 
     let frag1 = Ipv4Packet::new_unchecked(&frag1_bytes[..]);
     let frag2 = Ipv4Packet::new_unchecked(&frag2_bytes[..]);
@@ -1721,7 +1727,10 @@ fn test_raw_socket_rx_fragmentation(#[case] medium: Medium) {
     assert_eq!(repr.next_header, proto);
     assert_eq!(repr.payload_len, total_payload_len);
     assert_eq!(repr.options_len(), OPTIONS_BYTES.len());
-    assert_eq!(repr.options[0..repr.options_len()], OPTIONS_BYTES[0..repr.options_len()]);
+    assert_eq!(
+        repr.options[0..repr.options_len()],
+        OPTIONS_BYTES[0..repr.options_len()]
+    );
 
     let payload = packet.payload();
     assert_eq!(payload.len(), total_payload_len);
