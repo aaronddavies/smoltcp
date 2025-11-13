@@ -1,5 +1,6 @@
 use super::*;
-use crate::wire::ipv4::{HEADER_LEN, MAX_OPTIONS_SIZE};
+use crate::iface::interface::ipv4::PAYLOAD_FRAGMENT_ALIGNMENT;
+use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
 #[rstest]
 #[case(Medium::Ethernet)]
@@ -1555,6 +1556,7 @@ fn test_raw_socket_tx_fragmentation_with_options() {
             let result = f(&mut buffer[..len]);
             let option_end = IPV4_HEADER_LEN + OPTIONS_BYTES.len();
             assert_eq!(buffer[IPV4_HEADER_LEN..option_end], OPTIONS_BYTES);
+            assert_eq!((len - option_end) % PAYLOAD_FRAGMENT_ALIGNMENT, 0);
             result
         }
     }
@@ -1573,6 +1575,7 @@ fn test_raw_socket_tx_fragmentation_with_options() {
             let option_end = IPV4_HEADER_LEN + stream_id.len();
             assert_ne!(buffer[IPV4_HEADER_LEN..option_end], OPTIONS_BYTES);
             assert_eq!(buffer[IPV4_HEADER_LEN..option_end], stream_id);
+            assert_eq!((len - option_end) % PAYLOAD_FRAGMENT_ALIGNMENT, 0);
             result
         }
     }
@@ -1876,7 +1879,7 @@ fn test_raw_socket_rx_fragmentation_with_options_out_of_order_recv() {
     let packet = Ipv4Packet::new_unchecked(data);
     let repr = Ipv4Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
     assert_eq!(repr.payload_len, total_payload_len);
-    assert_eq!(repr.header_len, HEADER_LEN + full_options.len());
+    assert_eq!(repr.header_len, IPV4_HEADER_LEN + full_options.len());
     assert_eq!(repr.options_len(), full_options.len());
     assert_eq!(repr.options[..repr.options_len()], full_options);
 
