@@ -12,6 +12,10 @@ use crate::wire::*;
 use crate::wire::ipv4::{ALIGNMENT_32_BITS, HEADER_LEN, MAX_OPTIONS_SIZE};
 use core::result::Result;
 
+// Special option type octets.
+const OPTION_TYPE_PADDING: u8 = 0x00;
+const OPTION_TYPE_NO_OPERATION: u8 = 0x01;
+
 #[cfg(feature = "alloc")]
 type Buffer = alloc::vec::Vec<u8>;
 #[cfg(not(feature = "alloc"))]
@@ -424,7 +428,7 @@ impl Ipv4Fragmenter {
     /// Reference: https://www.iana.org/assignments/ip-parameters/ip-parameters.xhtml#ip-parameters-1
     fn parse_option_type_octet(type_octet: u8) -> (bool, bool) {
         let copy_flag: bool = type_octet & 0x80 == 0x80;
-        let has_length_octet = type_octet != 0x00 && type_octet != 0x01;
+        let has_length_octet = type_octet != OPTION_TYPE_PADDING && type_octet != OPTION_TYPE_NO_OPERATION;
         (copy_flag, has_length_octet)
     }
 
@@ -459,7 +463,7 @@ impl Ipv4Fragmenter {
                     i_write += length;
                     // If necessary, safely pad the remainder of the alignment in the destination.
                     while i_write % 4 != 0 && i_write < MAX_OPTIONS_SIZE {
-                        dest[i_write] = 0x1;
+                        dest[i_write] = OPTION_TYPE_NO_OPERATION;
                         i_write += 1;
                     }
                 }
@@ -473,7 +477,7 @@ impl Ipv4Fragmenter {
             // of the option is complete, and therefore never directly copied from the reading.
         }
         // Zero the options buffer, and then write the new option set.
-        self.repr.set_options(&[0u8; MAX_OPTIONS_SIZE]);
+        self.repr.set_options(&[OPTION_TYPE_PADDING; MAX_OPTIONS_SIZE]);
         self.repr.set_options(&dest[..i_write]);
     }
 }
