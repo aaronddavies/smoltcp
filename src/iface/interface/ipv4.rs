@@ -111,7 +111,7 @@ impl InterfaceInner {
         // If this is the first fragment, capture the options.
         #[cfg(feature = "proto-ipv4-fragmentation")]
         if ipv4_packet.frag_offset() == 0 && ipv4_packet.has_options() {
-            frag.options_buffer
+            frag.options_buffer[..ipv4_repr.options_len()]
                 .copy_from_slice(&ipv4_repr.options[..ipv4_repr.options_len()]);
             frag.options_len = ipv4_repr.options_len()
         }
