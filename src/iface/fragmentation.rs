@@ -10,6 +10,7 @@ use crate::time::{Duration, Instant};
 use crate::wire::*;
 
 use crate::phy::ChecksumCapabilities;
+#[cfg(feature = "proto-ipv4")]
 use crate::wire::ipv4::{ALIGNMENT_32_BITS, HEADER_LEN, MAX_OPTIONS_SIZE, Packet, Repr};
 use core::result::Result;
 
@@ -514,6 +515,7 @@ impl Ipv4Fragmenter {
 mod tests {
     use super::*;
     use crate::phy::ChecksumCapabilities;
+    #[cfg(feature = "proto-ipv4")]
     use crate::wire::ipv4::{Packet, Repr};
 
     #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Copy)]
@@ -620,6 +622,7 @@ mod tests {
         assert_eq!(assr.assemble(), Some(&[0x00, 0x01][..]));
     }
 
+    #[cfg(feature = "proto-ipv4-fragmentation")]
     #[test]
     fn filter_options_no_options_present() {
         const PACKET_BYTES: [u8; 30] = [
@@ -635,6 +638,7 @@ mod tests {
         assert_eq!(repr, frag.ipv4.repr);
     }
 
+    #[cfg(feature = "proto-ipv4-fragmentation")]
     #[test]
     fn filter_options_one_persisted_option_present() {
         const PACKET_BYTES: [u8; 34] = [
@@ -654,6 +658,7 @@ mod tests {
         assert_eq!(frag.ipv4.repr.header_len, PACKET_BYTES.len() - 10);
     }
 
+    #[cfg(feature = "proto-ipv4-fragmentation")]
     #[test]
     fn filter_options_one_discarded_option_present_with_noop_padding() {
         const PACKET_BYTES: [u8; 38] = [
@@ -675,6 +680,7 @@ mod tests {
         assert_eq!(frag.ipv4.repr.options, [0u8; MAX_OPTIONS_SIZE]);
     }
 
+    #[cfg(feature = "proto-ipv4-fragmentation")]
     #[test]
     fn filter_options_one_discarded_and_one_persisted_with_middle_padding() {
         const PACKET_BYTES: [u8; 42] = [
@@ -698,6 +704,7 @@ mod tests {
         assert_eq!(frag.ipv4.repr.options[4..], [0u8; MAX_OPTIONS_SIZE - 4]);
     }
 
+    #[cfg(feature = "proto-ipv4-fragmentation")]
     #[test]
     fn filter_options_max_options_present() {
         const PACKET_BYTES: [u8; 70] = [
@@ -725,6 +732,7 @@ mod tests {
     }
 }
 
+#[cfg(feature = "proto-ipv4-fragmentation")]
 #[test]
 fn filter_options_one_discarded_and_one_persisted_with_padding_required_of_different_length() {
     const PACKET_BYTES: [u8; 46] = [

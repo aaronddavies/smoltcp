@@ -63,6 +63,7 @@ macro_rules! check {
         }
     };
 }
+#[cfg(feature = "proto-ipv4")]
 use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 use check;
 
