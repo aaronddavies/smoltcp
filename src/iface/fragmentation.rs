@@ -420,24 +420,24 @@ impl Fragmenter {
 
 #[derive(PartialEq)]
 enum OptionCopyBehavior {
+    // This option is copied for every fragment
     Copy,
+    // This option is discarded after the first fragment
     DontCopy,
 }
 
 #[derive(PartialEq)]
 enum OptionLengthType {
+    // This option has an octet specifying the length of the option
     HasLength,
+    // This option has no length octet and is of single octet length
     NoLength,
 }
 
 #[cfg(feature = "_proto-fragmentation")]
 impl Ipv4Fragmenter {
     /// Determines two characteristics of the option from the type octet.
-    /// Returns (copy_flag, has_length_octet)
-    /// copy_flag: If true, this option is to be copied for all fragments. If false, this option
-    ///   should not be copied, and should only be sent with the first fragment.
-    /// has_length_octet: If true, the option octet is followed by a length octet. If false, the
-    ///   option is of single octet length.
+    /// Returns (OptionCopyBehavior, OptionLengthType)
     /// Reference: https://www.iana.org/assignments/ip-parameters/ip-parameters.xhtml#ip-parameters-1
     fn parse_option_type_octet(type_octet: u8) -> (OptionCopyBehavior, OptionLengthType) {
         let copy_behavior: OptionCopyBehavior = if type_octet & 0x80 == 0x80 {
