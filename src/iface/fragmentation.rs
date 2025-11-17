@@ -418,6 +418,18 @@ impl Fragmenter {
     }
 }
 
+#[derive(PartialEq)]
+enum OptionCopyBehavior {
+    Copy,
+    DontCopy
+}
+
+#[derive(PartialEq)]
+enum OptionLengthType {
+    HasLength,
+    NoLength,
+}
+
 #[cfg(feature = "_proto-fragmentation")]
 impl Ipv4Fragmenter {
     /// Determines two characteristics of the option from the type octet.
@@ -427,11 +439,20 @@ impl Ipv4Fragmenter {
     /// has_length_octet: If true, the option octet is followed by a length octet. If false, the
     ///   option is of single octet length.
     /// Reference: https://www.iana.org/assignments/ip-parameters/ip-parameters.xhtml#ip-parameters-1
-    fn parse_option_type_octet(type_octet: u8) -> (bool, bool) {
-        let copy_flag: bool = type_octet & 0x80 == 0x80;
-        let has_length_octet =
-            type_octet != OPTION_TYPE_PADDING && type_octet != OPTION_TYPE_NO_OPERATION;
-        (copy_flag, has_length_octet)
+    fn parse_option_type_octet(type_octet: u8) -> (OptionCopyBehavior, OptionLengthType) {
+        let copy_behavior: OptionCopyBehavior =
+            if type_octet & 0x80 == 0x80 {
+                OptionCopyBehavior::Copy
+            } else {
+                OptionCopyBehavior::DontCopy
+            };
+        let length_type =
+            if type_octet != OPTION_TYPE_PADDING && type_octet != OPTION_TYPE_NO_OPERATION {
+                OptionLengthType::HasLength
+            } else {
+                OptionLengthType::NoLength
+            };
+        (copy_behavior, length_type)
     }
 
     pub(crate) fn filter_options(&mut self) {
@@ -449,12 +470,12 @@ impl Ipv4Fragmenter {
         while i_read < options_len {
             // Parse the type octet to get our instructions for this option.
             let type_octet = source[i_read];
-            let (is_copied, has_length_octet) = Self::parse_option_type_octet(type_octet);
-            if has_length_octet {
+            let (copy_behavior, length_type) = Self::parse_option_type_octet(type_octet);
+            if length_type == OptionLengthType::HasLength {
                 // Parse the length octet.
                 let length = source[i_read + 1] as usize;
                 // Safely copy the option based on its length.
-                if is_copied && i_write + length <= options_len && i_read + length <= options_len {
+                if copy_behavior == OptionCopyBehavior::Copy && i_write + length <= options_len && i_read + length <= options_len {
                     dest[i_write..i_write + length]
                         .copy_from_slice(&source[i_read..i_read + length]);
                     // Advance the write pointer.
