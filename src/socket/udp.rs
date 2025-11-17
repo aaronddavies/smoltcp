@@ -1042,25 +1042,39 @@ mod test {
 
         s.set_hop_limit(Some(0x2a));
         assert_eq!(s.send_slice(b"abcdef", REMOTE_END), Ok(()));
+        cfg_if::cfg_if! {
+            if #[cfg(feature = "proto-ipv4")] {
+                let expected = IpReprIpvX(IpvXRepr {
+                    src_addr: LOCAL_ADDR,
+                    dst_addr: REMOTE_ADDR,
+                    next_header: IpProtocol::Udp,
+                    header_len: IPV4_HEADER_LEN,
+                    payload_len: 8 + 6,
+                    dscp: 0,
+                    ecn: 0,
+                    ident: 0,
+                    dont_frag: false,
+                    more_frags: false,
+                    frag_offset: 0,
+                    hop_limit: 0x2a,
+                    options: [0u8; MAX_OPTIONS_SIZE],
+                });
+            }
+            else {
+                let expected = IpReprIpvX(IpvXRepr {
+                    src_addr: LOCAL_ADDR,
+                    dst_addr: REMOTE_ADDR,
+                    next_header: IpProtocol::Udp,
+                    payload_len: 8 + 6,
+                    hop_limit: 0x2a,
+                });
+            }
+        }
         assert_eq!(
             s.dispatch(cx, |_, _, (ip_repr, _, _)| {
                 assert_eq!(
                     ip_repr,
-                    IpReprIpvX(IpvXRepr {
-                        src_addr: LOCAL_ADDR,
-                        dst_addr: REMOTE_ADDR,
-                        next_header: IpProtocol::Udp,
-                        header_len: IPV4_HEADER_LEN,
-                        payload_len: 8 + 6,
-                        dscp: 0,
-                        ecn: 0,
-                        ident: 0,
-                        dont_frag: false,
-                        more_frags: false,
-                        frag_offset: 0,
-                        hop_limit: 0x2a,
-                        options: [0u8; MAX_OPTIONS_SIZE],
-                    })
+                    expected
                 );
                 Ok::<_, ()>(())
             }),
