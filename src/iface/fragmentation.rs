@@ -462,9 +462,9 @@ impl Ipv4Fragmenter {
             return;
         }
         // Initialize read and write pointers
-        let source: &[u8; 40] = &self.repr.options;
+        let source: &[u8; MAX_OPTIONS_SIZE] = &self.repr.options;
         let mut i_read: usize = 0;
-        let dest: &mut [u8; 40] = &mut [0u8; MAX_OPTIONS_SIZE];
+        let dest: &mut [u8; MAX_OPTIONS_SIZE] = &mut [0u8; MAX_OPTIONS_SIZE];
         let mut i_write: usize = 0;
         // Iterate through the options.
         while i_read < options_len {
