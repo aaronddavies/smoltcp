@@ -9,9 +9,9 @@ use crate::storage::Assembler;
 use crate::time::{Duration, Instant};
 use crate::wire::*;
 
-use crate::wire::ipv4::{Packet, Repr, ALIGNMENT_32_BITS, HEADER_LEN, MAX_OPTIONS_SIZE};
-use core::result::Result;
 use crate::phy::ChecksumCapabilities;
+use crate::wire::ipv4::{ALIGNMENT_32_BITS, HEADER_LEN, MAX_OPTIONS_SIZE, Packet, Repr};
+use core::result::Result;
 
 // Special option type octets.
 const OPTION_TYPE_PADDING: u8 = 0x00;
@@ -421,7 +421,7 @@ impl Fragmenter {
 #[derive(PartialEq)]
 enum OptionCopyBehavior {
     Copy,
-    DontCopy
+    DontCopy,
 }
 
 #[derive(PartialEq)]
@@ -440,12 +440,11 @@ impl Ipv4Fragmenter {
     ///   option is of single octet length.
     /// Reference: https://www.iana.org/assignments/ip-parameters/ip-parameters.xhtml#ip-parameters-1
     fn parse_option_type_octet(type_octet: u8) -> (OptionCopyBehavior, OptionLengthType) {
-        let copy_behavior: OptionCopyBehavior =
-            if type_octet & 0x80 == 0x80 {
-                OptionCopyBehavior::Copy
-            } else {
-                OptionCopyBehavior::DontCopy
-            };
+        let copy_behavior: OptionCopyBehavior = if type_octet & 0x80 == 0x80 {
+            OptionCopyBehavior::Copy
+        } else {
+            OptionCopyBehavior::DontCopy
+        };
         let length_type =
             if type_octet != OPTION_TYPE_PADDING && type_octet != OPTION_TYPE_NO_OPERATION {
                 OptionLengthType::HasLength
@@ -475,7 +474,10 @@ impl Ipv4Fragmenter {
                 // Parse the length octet.
                 let length = source[i_read + 1] as usize;
                 // Safely copy the option based on its length.
-                if copy_behavior == OptionCopyBehavior::Copy && i_write + length <= options_len && i_read + length <= options_len {
+                if copy_behavior == OptionCopyBehavior::Copy
+                    && i_write + length <= options_len
+                    && i_read + length <= options_len
+                {
                     dest[i_write..i_write + length]
                         .copy_from_slice(&source[i_read..i_read + length]);
                     // Advance the write pointer.
@@ -698,8 +700,8 @@ mod tests {
             0x07, 0x23, 0x20, // Route Record
             0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02,
             0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04,
-            0x01, 0x02, 0x03, 0x04,
-            0x88, 0x04, 0x5a, 0x5a, // Stream Identifier option (4 bytes)
+            0x01, 0x02, 0x03, 0x04, 0x88, 0x04, 0x5a,
+            0x5a, // Stream Identifier option (4 bytes)
             0x01, // Padding
             0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload (10 bytes)
         ];
@@ -720,8 +722,8 @@ mod tests {
 #[test]
 fn filter_options_one_discarded_and_one_persisted_with_padding_required_of_different_length() {
     const PACKET_BYTES: [u8; 46] = [
-        0x49, 0x21, 0x00, 0x2e, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xac, 0x9d, 0x11, 0x12,
-        0x13, 0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
+        0x49, 0x21, 0x00, 0x2e, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xac, 0x9d, 0x11, 0x12, 0x13,
+        0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
         0x07, 0x07, 0x04, 0x01, 0x02, 0x03, 0x04, // Route Record
         0x83, 0x07, 0x04, 0x05, 0x06, 0x07, 0x08, // Loose Source
         0x00, 0x00, // Padding (two octets)
@@ -737,6 +739,9 @@ fn filter_options_one_discarded_and_one_persisted_with_padding_required_of_diffe
     assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 8);
     assert_eq!(frag.ipv4.repr.payload_len, 10);
     // The route record is discarded and only the loose source option persists to all fragments.
-    assert_eq!(frag.ipv4.repr.options[0..8], [0x83, 0x07, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00]);
+    assert_eq!(
+        frag.ipv4.repr.options[0..8],
+        [0x83, 0x07, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00]
+    );
     assert_eq!(frag.ipv4.repr.options[8..], [0u8; MAX_OPTIONS_SIZE - 8]);
 }
