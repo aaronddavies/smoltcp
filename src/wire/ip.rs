@@ -4,7 +4,10 @@ use core::fmt;
 use super::{Error, Result};
 use crate::phy::ChecksumCapabilities;
 #[cfg(feature = "proto-ipv4")]
-use crate::wire::{Ipv4Address, Ipv4AddressExt, Ipv4Cidr, Ipv4Packet, Ipv4Repr, IPV4_HEADER_LEN, ipv4::MAX_OPTIONS_SIZE};
+use crate::wire::{
+    IPV4_HEADER_LEN, Ipv4Address, Ipv4AddressExt, Ipv4Cidr, Ipv4Packet, Ipv4Repr,
+    ipv4::MAX_OPTIONS_SIZE,
+};
 #[cfg(feature = "proto-ipv6")]
 use crate::wire::{Ipv6Address, Ipv6AddressExt, Ipv6Cidr, Ipv6Packet, Ipv6Repr};
 

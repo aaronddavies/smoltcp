@@ -2728,9 +2728,9 @@ impl<'a> fmt::Write for Socket<'a> {
 #[cfg(all(test, feature = "medium-ip"))]
 mod test {
     use super::*;
+    use crate::wire::IpRepr;
     #[cfg(feature = "proto-ipv4")]
     use crate::wire::{IPV4_HEADER_LEN, ipv4::MAX_OPTIONS_SIZE};
-    use crate::wire::IpRepr;
     use std::ops::{Deref, DerefMut};
     use std::vec::Vec;
     // =========================================================================================//

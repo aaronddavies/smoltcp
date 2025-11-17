@@ -1072,10 +1072,7 @@ mod test {
         }
         assert_eq!(
             s.dispatch(cx, |_, _, (ip_repr, _, _)| {
-                assert_eq!(
-                    ip_repr,
-                    expected
-                );
+                assert_eq!(ip_repr, expected);
                 Ok::<_, ()>(())
             }),
             Ok(())
