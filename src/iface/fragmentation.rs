@@ -9,8 +9,9 @@ use crate::storage::Assembler;
 use crate::time::{Duration, Instant};
 use crate::wire::*;
 
-use crate::wire::ipv4::{ALIGNMENT_32_BITS, HEADER_LEN, MAX_OPTIONS_SIZE};
+use crate::wire::ipv4::{Packet, Repr, ALIGNMENT_32_BITS, HEADER_LEN, MAX_OPTIONS_SIZE};
 use core::result::Result;
+use crate::phy::ChecksumCapabilities;
 
 // Special option type octets.
 const OPTION_TYPE_PADDING: u8 = 0x00;
@@ -444,12 +445,8 @@ impl Ipv4Fragmenter {
         let mut i_read: usize = 0;
         let dest: &mut [u8; 40] = &mut [0u8; MAX_OPTIONS_SIZE];
         let mut i_write: usize = 0;
-        // We can safely read only until the beginning of the last alignment. If there is no
-        // length octet in the last alignment, then we can safely dismiss the remaining octets in
-        // the alignment. They must be either further padding or otherwise invalid. If there is a
-        // length octet, then we will process the entire alignment.
-        let last_alignment = options_len - ALIGNMENT_32_BITS;
-        while i_read <= last_alignment {
+        // Iterate through the options.
+        while i_read < options_len {
             // Parse the type octet to get our instructions for this option.
             let type_octet = source[i_read];
             let (is_copied, has_length_octet) = Self::parse_option_type_octet(type_octet);
@@ -462,20 +459,20 @@ impl Ipv4Fragmenter {
                         .copy_from_slice(&source[i_read..i_read + length]);
                     // Advance the write pointer.
                     i_write += length;
-                    // If necessary, safely pad the remainder of the alignment in the destination.
-                    while i_write % 4 != 0 && i_write < MAX_OPTIONS_SIZE {
-                        dest[i_write] = OPTION_TYPE_NO_OPERATION;
-                        i_write += 1;
-                    }
                 }
-                // Advance the read pointer to the next alignment.
+                // Advance the read pointer.
                 i_read += length;
-                while i_read % 4 != 0 {
-                    i_read += 1;
-                }
+            } else {
+                // Advance past any single octets. They are not operable option bytes.
+                i_read += 1;
             }
-            // Options without a length octet indicate padding. Padding is handled once the writing
-            // of the option is complete, and therefore never directly copied from the reading.
+            // Options without a length octet indicate padding. Padding is inserted once the writing
+            // of the options is complete. Therefore, it is never directly copied from the reading.
+        }
+        // If necessary, safely pad the remainder of the alignment in the destination.
+        while i_write % ALIGNMENT_32_BITS != 0 && i_write < MAX_OPTIONS_SIZE {
+            dest[i_write] = OPTION_TYPE_PADDING;
+            i_write += 1;
         }
         // Zero the options buffer, and then write the new option set.
         self.repr
@@ -629,7 +626,7 @@ mod tests {
     }
 
     #[test]
-    fn filter_options_one_discarded_option_present() {
+    fn filter_options_one_discarded_option_present_with_noop_padding() {
         const PACKET_BYTES: [u8; 38] = [
             0x47, 0x21, 0x00, 0x26, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xc2, 0x39, 0x11, 0x12,
             0x13, 0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
@@ -650,7 +647,7 @@ mod tests {
     }
 
     #[test]
-    fn filter_options_one_discarded_and_one_persisted() {
+    fn filter_options_one_discarded_and_one_persisted_with_middle_padding() {
         const PACKET_BYTES: [u8; 42] = [
             0x48, 0x21, 0x00, 0x2a, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xde, 0xd6, 0x11, 0x12,
             0x13, 0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
@@ -675,13 +672,14 @@ mod tests {
     #[test]
     fn filter_options_max_options_present() {
         const PACKET_BYTES: [u8; 70] = [
-            0x4F, 0x21, 0x00, 0x46, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0x91, 0x82, 0x11, 0x12,
+            0x4F, 0x21, 0x00, 0x46, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0x14, 0xff, 0x11, 0x12,
             0x13, 0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
             0x07, 0x23, 0x20, // Route Record
             0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02,
             0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04,
-            0x01, 0x02, 0x03, 0x04, 0x01, // Padding
+            0x01, 0x02, 0x03, 0x04,
             0x88, 0x04, 0x5a, 0x5a, // Stream Identifier option (4 bytes)
+            0x01, // Padding
             0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload (10 bytes)
         ];
         let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
@@ -696,4 +694,28 @@ mod tests {
         assert_eq!(frag.ipv4.repr.options[0..4], [0x88, 0x04, 0x5a, 0x5a]);
         assert_eq!(frag.ipv4.repr.options[4..], [0u8; MAX_OPTIONS_SIZE - 4]);
     }
+}
+
+#[test]
+fn filter_options_one_discarded_and_one_persisted_with_padding_required_of_different_length() {
+    const PACKET_BYTES: [u8; 46] = [
+        0x49, 0x21, 0x00, 0x2e, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xac, 0x9d, 0x11, 0x12,
+        0x13, 0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
+        0x07, 0x07, 0x04, 0x01, 0x02, 0x03, 0x04, // Route Record
+        0x83, 0x07, 0x04, 0x05, 0x06, 0x07, 0x08, // Loose Source
+        0x00, 0x00, // Padding (two octets)
+        0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload (10 bytes)
+    ];
+    let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
+    let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+    let mut frag = Fragmenter::new();
+    frag.ipv4.repr = repr;
+    frag.ipv4.filter_options();
+    assert_ne!(repr, frag.ipv4.repr);
+    // Loose Source option plus only one octet of padding needed
+    assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 8);
+    assert_eq!(frag.ipv4.repr.payload_len, 10);
+    // The route record is discarded and only the loose source option persists to all fragments.
+    assert_eq!(frag.ipv4.repr.options[0..8], [0x83, 0x07, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00]);
+    assert_eq!(frag.ipv4.repr.options[8..], [0u8; MAX_OPTIONS_SIZE - 8]);
 }
