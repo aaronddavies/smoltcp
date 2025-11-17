@@ -425,6 +425,7 @@ impl Fragmenter {
     }
 }
 
+#[cfg(feature = "proto-ipv4-fragmentation")]
 #[derive(PartialEq)]
 enum OptionCopyBehavior {
     // This option is copied for every fragment
@@ -433,6 +434,7 @@ enum OptionCopyBehavior {
     DontCopy,
 }
 
+#[cfg(feature = "proto-ipv4-fragmentation")]
 #[derive(PartialEq)]
 enum OptionLengthType {
     // This option has an octet specifying the length of the option
@@ -441,7 +443,7 @@ enum OptionLengthType {
     NoLength,
 }
 
-#[cfg(feature = "_proto-fragmentation")]
+#[cfg(feature = "proto-ipv4-fragmentation")]
 impl Ipv4Fragmenter {
     /// Determines two characteristics of the option from the type octet.
     /// Returns (OptionCopyBehavior, OptionLengthType)
