@@ -462,8 +462,8 @@ impl Ipv4Fragmenter {
         let mut i_read: usize = 0;
         let dest: &mut [u8; MAX_OPTIONS_SIZE] = &mut [0u8; MAX_OPTIONS_SIZE];
         let mut i_write: usize = 0;
-        // Iterate through the options.
-        while i_read < options_len {
+        // Iterate through the options, always allowing for a subsequent length octet to be read.
+        while i_read + 1 < options_len {
             // Parse the type octet to get our instructions for this option.
             let type_octet = source[i_read];
             let (copy_behavior, length_type) = Self::parse_option_type_octet(type_octet);
@@ -720,6 +720,28 @@ mod tests {
     }
 }
 
+#[test]
+fn filter_options_bad_option_at_end_does_not_cause_panic() {
+    const PACKET_BYTES: [u8; 70] = [
+        0x4F, 0x21, 0x00, 0x46, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0x14, 0xff, 0x11, 0x12,
+        0x13, 0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
+        0x07, 0x23, 0x20, // Route Record
+        0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02,
+        0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04,
+        0x01, 0x02, 0x03, 0x04, 0x88, 0x04, 0x5a,
+        0x5a, // Stream Identifier option (4 bytes)
+        0x81, // Bad octet that indicates a length octet is following, but we are at the end
+        0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload (10 bytes)
+    ];
+    let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
+    let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+    let mut frag = Fragmenter::new();
+    frag.ipv4.repr = repr;
+    frag.ipv4.filter_options();
+    assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 4); // stream id only in options
+}
+
+#[cfg(feature = "proto-ipv4-fragmentation")]
 #[test]
 fn filter_options_one_discarded_and_one_persisted_with_padding_required_of_different_length() {
     const PACKET_BYTES: [u8; 46] = [
