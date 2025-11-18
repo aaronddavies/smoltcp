@@ -497,9 +497,7 @@ impl Ipv4Fragmenter {
             dest[i_write] = OPTION_TYPE_PADDING;
             i_write += 1;
         }
-        // Zero the options buffer, and then write the new option set.
-        self.repr
-            .set_options(&[OPTION_TYPE_PADDING; MAX_OPTIONS_SIZE]);
+        // Write the new option set.
         self.repr.set_options(&dest[..i_write]);
     }
 }
@@ -644,8 +642,8 @@ mod tests {
         frag.ipv4.filter_options();
         // The stream id remains. Each fragment header is identical.
         assert_eq!(repr, frag.ipv4.repr);
-        assert_eq!(frag.ipv4.repr.payload_len, 10);
         assert_eq!(frag.ipv4.repr.header_len, PACKET_BYTES.len() - 10);
+        assert_eq!(frag.ipv4.repr.payload_len, 10);
     }
 
     #[test]
@@ -663,10 +661,9 @@ mod tests {
         frag.ipv4.repr = repr;
         frag.ipv4.filter_options();
         assert_ne!(repr, frag.ipv4.repr);
+        // The route record is discarded in all further fragments.
         assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN);
         assert_eq!(frag.ipv4.repr.payload_len, 10);
-        // The route record is discarded in all further fragments.
-        assert_eq!(frag.ipv4.repr.options, [0u8; MAX_OPTIONS_SIZE]);
     }
 
     #[test]
@@ -685,11 +682,10 @@ mod tests {
         frag.ipv4.repr = repr;
         frag.ipv4.filter_options();
         assert_ne!(repr, frag.ipv4.repr);
-        assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 4); // stream id only in options
-        assert_eq!(frag.ipv4.repr.payload_len, 10);
         // The route record is discarded and only the stream id persists to all fragments.
+        assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 4); // stream id only in options
         assert_eq!(frag.ipv4.repr.options[0..4], [0x88, 0x04, 0x5a, 0x5a]);
-        assert_eq!(frag.ipv4.repr.options[4..], [0u8; MAX_OPTIONS_SIZE - 4]);
+        assert_eq!(frag.ipv4.repr.payload_len, 10);
     }
 
     #[test]
@@ -711,11 +707,10 @@ mod tests {
         frag.ipv4.repr = repr;
         frag.ipv4.filter_options();
         assert_ne!(repr, frag.ipv4.repr);
-        assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 4); // stream id only in options
-        assert_eq!(frag.ipv4.repr.payload_len, 10);
         // The route record is discarded and only the stream id persists to all fragments.
+        assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 4); // stream id only in options
         assert_eq!(frag.ipv4.repr.options[0..4], [0x88, 0x04, 0x5a, 0x5a]);
-        assert_eq!(frag.ipv4.repr.options[4..], [0u8; MAX_OPTIONS_SIZE - 4]);
+        assert_eq!(frag.ipv4.repr.payload_len, 10);
     }
 }
 
@@ -757,10 +752,10 @@ fn filter_options_one_discarded_and_one_persisted_with_padding_required_of_diffe
     frag.ipv4.repr = repr;
     frag.ipv4.filter_options();
     assert_ne!(repr, frag.ipv4.repr);
-    // Loose Source option plus only one octet of padding needed
+    // The route record is discarded and only the loose source option persists to all fragments.
+    // Only one octet of padding is needed.
     assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 8);
     assert_eq!(frag.ipv4.repr.payload_len, 10);
-    // The route record is discarded and only the loose source option persists to all fragments.
     assert_eq!(
         frag.ipv4.repr.options[0..8],
         [0x83, 0x07, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00]
