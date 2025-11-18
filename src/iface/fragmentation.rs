@@ -644,6 +644,12 @@ mod tests {
         assert_eq!(repr, frag.ipv4.repr);
         assert_eq!(frag.ipv4.repr.header_len, PACKET_BYTES.len() - 10);
         assert_eq!(frag.ipv4.repr.payload_len, 10);
+        // Repeat as if on next fragment.
+        frag.ipv4.filter_options();
+        // The stream id remains. Each fragment header is identical.
+        assert_eq!(repr, frag.ipv4.repr);
+        assert_eq!(frag.ipv4.repr.header_len, PACKET_BYTES.len() - 10);
+        assert_eq!(frag.ipv4.repr.payload_len, 10);
     }
 
     #[test]

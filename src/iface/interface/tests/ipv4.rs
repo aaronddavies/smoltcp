@@ -1440,7 +1440,7 @@ fn test_raw_socket_tx_fragmentation_with_options() {
 
     // Form the packet to be sent.
 
-    let packet_size = mtu * 5 / 4; // Larger than MTU, requires fragmentation
+    let packet_size = mtu * 9 / 4; // Larger than MTU, requires two fragments
     let payload_len = packet_size - IPV4_HEADER_LEN as usize;
     let payload = vec![0xa5u8; payload_len];
 
@@ -1490,10 +1490,10 @@ fn test_raw_socket_tx_fragmentation_with_options() {
         }
     }
 
-    struct TestSecondFragmentTxToken {}
+    struct TestSubsequentFragmentTxToken {}
 
     // The second fragment should only have the stream ID.
-    impl TxToken for TestSecondFragmentTxToken {
+    impl TxToken for TestSubsequentFragmentTxToken {
         fn consume<R, F>(self, len: usize, f: F) -> R
         where
             F: FnOnce(&mut [u8]) -> R,
@@ -1516,9 +1516,11 @@ fn test_raw_socket_tx_fragmentation_with_options() {
     );
     assert!(result.is_ok());
 
-    iface
-        .inner
-        .dispatch_ipv4_frag(TestSecondFragmentTxToken {}, &mut iface.fragmenter);
+    for _ in 0..2 {
+        iface
+            .inner
+            .dispatch_ipv4_frag(TestSubsequentFragmentTxToken {}, &mut iface.fragmenter);
+    }
 }
 
 #[rstest]
