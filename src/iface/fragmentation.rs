@@ -440,16 +440,13 @@ impl Ipv4Fragmenter {
     /// Returns (OptionCopyBehavior, OptionLengthType)
     /// Reference: https://www.iana.org/assignments/ip-parameters/ip-parameters.xhtml#ip-parameters-1
     fn parse_option_type_octet(type_octet: u8) -> (OptionCopyBehavior, OptionLengthType) {
-        let copy_behavior: OptionCopyBehavior = if type_octet & 0x80 == 0x80 {
-            OptionCopyBehavior::Copy
-        } else {
-            OptionCopyBehavior::DontCopy
+        let copy_behavior = match (type_octet & 0x80) {
+            0x80 => OptionCopyBehavior::Copy,
+            _ => OptionCopyBehavior::DontCopy,
         };
-        let length_type =
-            if type_octet != OPTION_TYPE_PADDING && type_octet != OPTION_TYPE_NO_OPERATION {
-                OptionLengthType::HasLength
-            } else {
-                OptionLengthType::NoLength
+        let length_type = match type_octet {
+            OPTION_TYPE_PADDING | OPTION_TYPE_NO_OPERATION => OptionLengthType::NoLength,
+            _ => OptionLengthType::HasLength,
             };
         (copy_behavior, length_type)
     }
