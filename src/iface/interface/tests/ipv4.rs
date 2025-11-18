@@ -1492,7 +1492,7 @@ fn test_raw_socket_tx_fragmentation_with_options() {
 
     struct TestSubsequentFragmentTxToken {}
 
-    // The second fragment should only have the stream ID.
+    // Remaining fragments should only have the stream ID.
     impl TxToken for TestSubsequentFragmentTxToken {
         fn consume<R, F>(self, len: usize, f: F) -> R
         where
@@ -1507,6 +1507,8 @@ fn test_raw_socket_tx_fragmentation_with_options() {
             result
         }
     }
+
+    // Send the packets. Test assertions are in the test token `consume()` implementations.
 
     let result = iface.inner.dispatch_ip(
         TestFirstFragmentTxToken {},
@@ -1735,7 +1737,7 @@ fn test_raw_socket_rx_fragmentation_with_options_out_of_order_recv() {
         0x88, 0x04, 0x5a, 0x5a, // Stream Identifier option (4 bytes)
     ];
     let filtered_options = [0x88, 0x04, 0x5a, 0x5a];
-    
+
     let frag1_bytes = build_fragment(
         first_payload_len, true, 0, 0xAA, full_options.as_slice());
     let frag2_bytes = build_fragment(
