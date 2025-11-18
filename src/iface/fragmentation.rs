@@ -438,7 +438,6 @@ enum OptionLengthType {
 impl Ipv4Fragmenter {
     /// Determines two characteristics of the option from the type octet.
     /// Returns (OptionCopyBehavior, OptionLengthType)
-    /// Reference: https://www.iana.org/assignments/ip-parameters/ip-parameters.xhtml#ip-parameters-1
     fn parse_option_type_octet(type_octet: u8) -> (OptionCopyBehavior, OptionLengthType) {
         let copy_behavior = match (type_octet & 0x80) {
             0x80 => OptionCopyBehavior::Copy,
@@ -447,14 +446,14 @@ impl Ipv4Fragmenter {
         let length_type = match type_octet {
             OPTION_TYPE_PADDING | OPTION_TYPE_NO_OPERATION => OptionLengthType::NoLength,
             _ => OptionLengthType::HasLength,
-            };
+        };
         (copy_behavior, length_type)
     }
 
     pub(crate) fn filter_options(&mut self) {
         let options_len = self.repr.header_len - HEADER_LEN;
         // Guard to have at least one properly sized option
-        if (options_len < ALIGNMENT_32_BITS) {
+        if options_len < ALIGNMENT_32_BITS {
             return;
         }
         // Initialize read and write pointers
