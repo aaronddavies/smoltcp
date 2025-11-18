@@ -1695,7 +1695,7 @@ fn test_raw_socket_rx_fragmentation_with_options_out_of_order_recv() {
                           frag_offset_octets: u16,
                           payload_byte: u8,
                           options: &[u8]|
-                          -> Vec<u8> {
+     -> Vec<u8> {
         let mut repr = Ipv4Repr {
             src_addr,
             dst_addr,
@@ -1732,16 +1732,21 @@ fn test_raw_socket_rx_fragmentation_with_options_out_of_order_recv() {
     };
 
     // Define a full option list and a filtered option list.
-    let full_options = [0x07, 0x07, 0x04, 0x01, 0x02, 0x03, 0x04, // Route Record
+    let full_options = [
+        0x07, 0x07, 0x04, 0x01, 0x02, 0x03, 0x04, // Route Record
         0x01, // Padding
         0x88, 0x04, 0x5a, 0x5a, // Stream Identifier option (4 bytes)
     ];
     let filtered_options = [0x88, 0x04, 0x5a, 0x5a];
 
-    let frag1_bytes = build_fragment(
-        first_payload_len, true, 0, 0xAA, full_options.as_slice());
+    let frag1_bytes = build_fragment(first_payload_len, true, 0, 0xAA, full_options.as_slice());
     let frag2_bytes = build_fragment(
-        last_payload_len, false, first_payload_len as u16, 0xBB, filtered_options.as_slice());
+        last_payload_len,
+        false,
+        first_payload_len as u16,
+        0xBB,
+        filtered_options.as_slice(),
+    );
 
     let frag1 = Ipv4Packet::new_unchecked(&frag1_bytes[..]);
     let frag2 = Ipv4Packet::new_unchecked(&frag2_bytes[..]);
