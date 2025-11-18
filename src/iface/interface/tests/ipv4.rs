@@ -1,5 +1,5 @@
 use super::*;
-use crate::wire::ipv4::MAX_OPTIONS_SIZE;
+use crate::wire::ipv4::{HEADER_LEN, MAX_OPTIONS_SIZE};
 
 #[rstest]
 #[case(Medium::Ethernet)]
@@ -1647,6 +1647,141 @@ fn test_raw_socket_rx_fragmentation(#[case] medium: Medium) {
     assert_eq!(repr.dst_addr, dst_addr);
     assert_eq!(repr.next_header, proto);
     assert_eq!(repr.payload_len, total_payload_len);
+
+    let payload = packet.payload();
+    assert_eq!(payload.len(), total_payload_len);
+    assert!(payload[..first_payload_len].iter().all(|&b| b == 0xAA));
+    assert!(payload[first_payload_len..].iter().all(|&b| b == 0xBB));
+}
+
+#[rstest]
+#[cfg(all(
+    feature = "socket-raw",
+    feature = "proto-ipv4-fragmentation",
+    feature = "medium-ip"
+))]
+fn test_raw_socket_rx_fragmentation_with_options_out_of_order_recv() {
+    use crate::wire::{IpProtocol, IpVersion, Ipv4Address, Ipv4Packet, Ipv4Repr};
+
+    let (mut iface, mut sockets, _device) = setup(Medium::Ip);
+
+    // Raw socket bound to IPv4 and a custom protocol.
+    let packets = 1;
+    let rx_buffer = raw::PacketBuffer::new(vec![raw::PacketMetadata::EMPTY; packets], vec![0; 64]);
+    let tx_buffer = raw::PacketBuffer::new(vec![raw::PacketMetadata::EMPTY; packets], vec![0; 64]);
+    let raw_socket = raw::Socket::new(
+        Some(IpVersion::Ipv4),
+        Some(IpProtocol::Unknown(99)),
+        rx_buffer,
+        tx_buffer,
+    );
+    let handle = sockets.add(raw_socket);
+
+    // Build two IPv4 fragments that together form one packet.
+    let src_addr = Ipv4Address::new(127, 0, 0, 2);
+    let dst_addr = Ipv4Address::new(127, 0, 0, 1);
+    let proto = IpProtocol::Unknown(99);
+    let ident: u16 = 0x1234;
+
+    let total_payload_len = 30usize;
+    let first_payload_len = 24usize; // must be a multiple of 8
+    let last_payload_len = total_payload_len - first_payload_len;
+
+    // Helper to build one fragment as on-the-wire bytes
+    let build_fragment = |payload_len: usize,
+                          more_frags: bool,
+                          frag_offset_octets: u16,
+                          payload_byte: u8,
+                          options: &[u8]|
+                          -> Vec<u8> {
+        let mut repr = Ipv4Repr {
+            src_addr,
+            dst_addr,
+            next_header: proto,
+            hop_limit: 64,
+            payload_len,
+            header_len: IPV4_HEADER_LEN,
+            dscp: 0,
+            ecn: 0,
+            ident: 0,
+            dont_frag: false,
+            more_frags: false,
+            frag_offset: 0,
+            options: [0u8; MAX_OPTIONS_SIZE],
+        };
+        repr.set_options(options).unwrap();
+        let header_len = repr.buffer_len();
+        let mut bytes = vec![0u8; header_len + payload_len];
+        {
+            let mut pkt = Ipv4Packet::new_unchecked(&mut bytes[..]);
+            repr.emit(&mut pkt, &ChecksumCapabilities::default());
+            pkt.set_ident(ident);
+            pkt.set_dont_frag(false);
+            pkt.set_more_frags(more_frags);
+            pkt.set_frag_offset(frag_offset_octets);
+            // Recompute checksum after changing fragmentation fields.
+            pkt.fill_checksum();
+        }
+        // Fill payload with a simple pattern for validation
+        for b in &mut bytes[header_len..] {
+            *b = payload_byte;
+        }
+        bytes
+    };
+
+    // Define a full option list and a filtered option list.
+    let full_options = [0x07, 0x07, 0x04, 0x01, 0x02, 0x03, 0x04, // Route Record
+        0x01, // Padding
+        0x88, 0x04, 0x5a, 0x5a, // Stream Identifier option (4 bytes)
+    ];
+    let filtered_options = [0x88, 0x04, 0x5a, 0x5a];
+    
+    let frag1_bytes = build_fragment(
+        first_payload_len, true, 0, 0xAA, full_options.as_slice());
+    let frag2_bytes = build_fragment(
+        last_payload_len, false, first_payload_len as u16, 0xBB, filtered_options.as_slice());
+
+    let frag1 = Ipv4Packet::new_unchecked(&frag1_bytes[..]);
+    let frag2 = Ipv4Packet::new_unchecked(&frag2_bytes[..]);
+
+    // Send the last fragment first.
+    assert_eq!(
+        iface.inner.process_ipv4(
+            &mut sockets,
+            PacketMeta::default(),
+            HardwareAddress::default(),
+            &frag2,
+            &mut iface.fragments
+        ),
+        None
+    );
+    {
+        let socket = sockets.get_mut::<raw::Socket>(handle);
+        assert!(!socket.can_recv());
+    }
+
+    // Send the first fragment last.
+    assert_eq!(
+        iface.inner.process_ipv4(
+            &mut sockets,
+            PacketMeta::default(),
+            HardwareAddress::default(),
+            &frag1,
+            &mut iface.fragments
+        ),
+        None
+    );
+
+    // Validate the raw socket received one defragmented packet with correct options and payload.
+    let socket = sockets.get_mut::<raw::Socket>(handle);
+    assert!(socket.can_recv());
+    let data = socket.recv().expect("raw socket should have a packet");
+    let packet = Ipv4Packet::new_unchecked(data);
+    let repr = Ipv4Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+    assert_eq!(repr.payload_len, total_payload_len);
+    assert_eq!(repr.header_len, HEADER_LEN + full_options.len());
+    assert_eq!(repr.options_len(), full_options.len());
+    assert_eq!(repr.options[..repr.options_len()], full_options);
 
     let payload = packet.payload();
     assert_eq!(payload.len(), total_payload_len);
