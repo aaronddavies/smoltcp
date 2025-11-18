@@ -1,5 +1,4 @@
 use super::*;
-use crate::iface::interface::ipv4::PAYLOAD_FRAGMENT_ALIGNMENT;
 use crate::wire::ipv4::MAX_OPTIONS_SIZE;
 
 #[rstest]
@@ -1556,7 +1555,7 @@ fn test_raw_socket_tx_fragmentation_with_options() {
             let result = f(&mut buffer[..len]);
             let option_end = IPV4_HEADER_LEN + OPTIONS_BYTES.len();
             assert_eq!(buffer[IPV4_HEADER_LEN..option_end], OPTIONS_BYTES);
-            assert_eq!((len - option_end) % PAYLOAD_FRAGMENT_ALIGNMENT, 0);
+            assert_eq!((len - option_end) % IPV4_FRAGMENT_PAYLOAD_ALIGNMENT, 0);
             result
         }
     }
@@ -1575,7 +1574,7 @@ fn test_raw_socket_tx_fragmentation_with_options() {
             let option_end = IPV4_HEADER_LEN + stream_id.len();
             assert_ne!(buffer[IPV4_HEADER_LEN..option_end], OPTIONS_BYTES);
             assert_eq!(buffer[IPV4_HEADER_LEN..option_end], stream_id);
-            assert_eq!((len - option_end) % PAYLOAD_FRAGMENT_ALIGNMENT, 0);
+            assert_eq!((len - option_end) % IPV4_FRAGMENT_PAYLOAD_ALIGNMENT, 0);
             result
         }
     }
