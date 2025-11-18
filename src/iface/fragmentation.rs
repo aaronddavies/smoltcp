@@ -484,6 +484,10 @@ impl Ipv4Fragmenter {
                 i_read += length;
             } else {
                 // Advance past any single octets. They are not operable option bytes.
+                // Only option types 0 and 1 have the length bit unset. All other option types have the
+                // length bit set, and therefore no operable option types can have both the copy bit set
+                // and the length bit unset. See the IANA option number list at:
+                // https://www.iana.org/assignments/ip-parameters/ip-parameters.xhtml#ip-parameters-1
                 i_read += 1;
             }
             // Options without a length octet indicate padding. Padding is inserted once the writing
