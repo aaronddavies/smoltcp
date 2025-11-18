@@ -472,8 +472,8 @@ impl Ipv4Fragmenter {
                 let length = source[i_read + 1] as usize;
                 // Safely copy the option based on its length.
                 if copy_behavior == OptionCopyBehavior::Copy
-                    && i_write + length <= options_len
-                    && i_read + length <= options_len
+                    && i_write + length <= dest.len()
+                    && i_read + length <= source.len()
                 {
                     dest[i_write..i_write + length]
                         .copy_from_slice(&source[i_read..i_read + length]);
