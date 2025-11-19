@@ -15,10 +15,6 @@ use crate::phy::ChecksumCapabilities;
 use crate::wire::ipv4::{ALIGNMENT_32_BITS, HEADER_LEN, MAX_OPTIONS_SIZE, Packet, Repr};
 use core::result::Result;
 
-// Fragmented payload sizes must be increments of this value.
-#[cfg(any(feature = "proto-ipv4-fragmentation"))]
-pub const IPV4_FRAGMENT_PAYLOAD_ALIGNMENT: usize = 8;
-
 // Special option type octets.
 const OPTION_TYPE_PADDING: u8 = 0x00;
 const OPTION_TYPE_NO_OPERATION: u8 = 0x01;
