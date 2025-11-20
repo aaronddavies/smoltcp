@@ -1332,6 +1332,67 @@ fn test_raw_socket_tx_with_option() {
 }
 
 #[rstest]
+#[cfg(all(feature = "socket-raw", feature = "medium-ip"))]
+fn test_raw_socket_tx_with_bad_option() {
+    // Form the socket.
+
+    let (mut iface, _, device) = setup(Medium::Ip);
+    let mtu: usize = device.capabilities().max_transmission_unit;
+
+    // Form the packet to be sent.
+
+    let packet_size = mtu * 5 / 4; // Larger than MTU, requires fragment
+    let payload_len = packet_size - IPV4_HEADER_LEN as usize;
+    let payload = vec![0xa5u8; payload_len];
+
+    let mut ip_repr = Ipv4Repr {
+        src_addr: Ipv4Address::new(192, 168, 1, 3),
+        dst_addr: Ipv4Address::BROADCAST,
+        next_header: IpProtocol::Udp,
+        header_len: IPV4_HEADER_LEN,
+        ident: 0,
+        dont_frag: false,
+        more_frags: false,
+        frag_offset: 0,
+        hop_limit: 64,
+        payload_len,
+        dscp: 0,
+        ecn: 0,
+        options: [0u8; MAX_OPTIONS_SIZE],
+    };
+
+    const OPTIONS_BYTES: [u8; 4] = [
+        0x88, 0xFF, 0x5a, 0x5a, // Stream Identifier option with bad length
+    ];
+
+    ip_repr.set_options(&OPTIONS_BYTES).unwrap();
+    let ip_payload = IpPayload::Raw(&payload);
+    let packet = Packet::new_ipv4(ip_repr, ip_payload);
+
+    struct TestPanicTxToken {}
+
+    impl TxToken for TestPanicTxToken {
+        fn consume<R, F>(self, _: usize, _: F) -> R
+        where
+            F: FnOnce(&mut [u8]) -> R,
+        {
+            panic!("Test should never reach here");
+        }
+    }
+
+    let result = iface.inner.dispatch_ip(
+        TestPanicTxToken {},
+        PacketMeta::default(),
+        packet,
+        &mut iface.fragmenter,
+    );
+
+    // Filtering should fail and the packet dropped, indicating the consume method in the tx token
+    // was never executed, otherwise the test would have panicked.
+    assert!(result.is_ok());
+}
+
+#[rstest]
 #[case(Medium::Ip)]
 #[cfg(all(
     feature = "socket-raw",

@@ -1345,7 +1345,7 @@ impl InterfaceInner {
 
                         // Verify that we can filter the options for the subsequent packets.
                         if let Err(_) = frag.ipv4.filter_options() {
-                            net_debug!("Could not fragment packet. Dropping.");
+                            net_debug!("Could not fragment packet because options cannot be filtered. Dropping.");
                             return Ok(());
                         };
 
