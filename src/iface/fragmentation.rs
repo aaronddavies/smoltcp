@@ -451,9 +451,8 @@ impl Ipv4Fragmenter {
         (copy_behavior, length_type)
     }
 
-    /// Filters the original option set and stores it for use with packet fragments.
-    /// Returns Ok(()) if no error occurs during filtering. In that case, it can be assumed
-    /// that the packet can be transmitted as far as the options filtering is concerned.
+    /// Filters the original option set and overwrites it in the repr for use with subsequent packet fragments.
+    /// Returns Ok(()) if no error occurs during filtering.
     pub(crate) fn filter_options(&mut self) -> Result<(()), DispatchError> {
         let options_len = self.repr.header_len - HEADER_LEN;
         // Exit nicely if no options are present, there is just nothing to filter.
