@@ -456,6 +456,10 @@ impl Ipv4Fragmenter {
     /// that the packet can be transmitted as far as the options filtering is concerned.
     pub(crate) fn filter_options(&mut self) -> Result<(()), DispatchError> {
         let options_len = self.repr.header_len - HEADER_LEN;
+        // Exit nicely if no options are present, there is just nothing to filter.
+        if options_len == 0 {
+            return Ok(())
+        }
         // Check for a proper length. There must be enough bytes for at least one operable option.
         if options_len < ALIGNMENT_32_BITS || !options_len.is_multiple_of(ALIGNMENT_32_BITS) || options_len > MAX_OPTIONS_SIZE {
             return Err(DispatchError::CannotFragment);
@@ -510,7 +514,7 @@ impl Ipv4Fragmenter {
             i_write += 1;
         }
         // Apply the filtered options.
-        match self.repr.set_options(dest.as_slice()) {
+        match self.repr.set_options(&dest[..i_write]) {
             Err(_) => Err(DispatchError::CannotFragment),
             Ok(()) => Ok(()),
         }
@@ -638,7 +642,7 @@ mod tests {
         let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
         let mut frag = Fragmenter::new();
         frag.ipv4.repr = repr;
-        frag.ipv4.filter_options();
+        assert!(frag.ipv4.filter_options().is_ok());
         assert_eq!(repr, frag.ipv4.repr);
     }
 
@@ -660,7 +664,7 @@ mod tests {
         assert_eq!(frag.ipv4.repr.header_len, PACKET_BYTES.len() - 10);
         assert_eq!(frag.ipv4.repr.payload_len, 10);
         // Repeat as if on next fragment.
-        frag.ipv4.filter_options();
+        assert!(frag.ipv4.filter_options().is_ok());
         // The stream id remains. Each fragment header is identical.
         assert_eq!(repr, frag.ipv4.repr);
         assert_eq!(frag.ipv4.repr.header_len, PACKET_BYTES.len() - 10);
@@ -680,7 +684,7 @@ mod tests {
         let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
         let mut frag = Fragmenter::new();
         frag.ipv4.repr = repr;
-        frag.ipv4.filter_options();
+        assert!(frag.ipv4.filter_options().is_ok());
         assert_ne!(repr, frag.ipv4.repr);
         // The route record is discarded in all further fragments.
         assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN);
@@ -701,7 +705,7 @@ mod tests {
         let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
         let mut frag = Fragmenter::new();
         frag.ipv4.repr = repr;
-        frag.ipv4.filter_options();
+        assert!(frag.ipv4.filter_options().is_ok());
         assert_ne!(repr, frag.ipv4.repr);
         // The route record is discarded and only the stream id persists to all fragments.
         assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 4); // stream id only in options
@@ -726,78 +730,73 @@ mod tests {
         let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
         let mut frag = Fragmenter::new();
         frag.ipv4.repr = repr;
-        frag.ipv4.filter_options();
+        assert!(frag.ipv4.filter_options().is_ok());
         assert_ne!(repr, frag.ipv4.repr);
         // The route record is discarded and only the stream id persists to all fragments.
         assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 4); // stream id only in options
         assert_eq!(frag.ipv4.repr.options[0..4], [0x88, 0x04, 0x5a, 0x5a]);
         assert_eq!(frag.ipv4.repr.payload_len, 10);
     }
-}
 
-#[test]
-fn filter_options_bad_option_at_end_does_not_cause_panic() {
-    const PACKET_BYTES: [u8; 70] = [
-        0x4F, 0x21, 0x00, 0x46, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0x14, 0x7f, 0x11, 0x12, 0x13,
-        0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
-        0x07, 0x23, 0x20, // Route Record
-        0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03,
-        0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02,
-        0x03, 0x04, 0x88, 0x04, 0x5a, 0x5a, // Stream Identifier option (4 bytes)
-        0x81, // Bad octet that indicates a length octet is following, but we are at the end
-        0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload (10 bytes)
-    ];
-    let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
-    let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
-    let mut frag = Fragmenter::new();
-    frag.ipv4.repr = repr;
-    frag.ipv4.filter_options();
-    assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 4); // stream id only in options
-}
+    #[test]
+    fn filter_options_bad_option_at_end_does_not_cause_panic() {
+        const PACKET_BYTES: [u8; 70] = [
+            0x4F, 0x21, 0x00, 0x46, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0x14, 0x7f, 0x11, 0x12, 0x13,
+            0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
+            0x07, 0x23, 0x20, // Route Record
+            0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03,
+            0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02, 0x03, 0x04, 0x01, 0x02,
+            0x03, 0x04, 0x88, 0x04, 0x5a, 0x5a, // Stream Identifier option (4 bytes)
+            0x81, // Bad octet that indicates a length octet is following, but we are at the end
+            0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload (10 bytes)
+        ];
+        let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
+        let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+        let mut frag = Fragmenter::new();
+        frag.ipv4.repr = repr;
+        assert!(frag.ipv4.filter_options().is_err());
+    }
 
-#[cfg(feature = "proto-ipv4-fragmentation")]
-#[test]
-fn filter_options_one_discarded_and_one_persisted_with_padding_required_of_different_length() {
-    const PACKET_BYTES: [u8; 46] = [
-        0x49, 0x21, 0x00, 0x2e, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xac, 0x9d, 0x11, 0x12, 0x13,
-        0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
-        0x07, 0x07, 0x04, 0x01, 0x02, 0x03, 0x04, // Route Record
-        0x83, 0x07, 0x04, 0x05, 0x06, 0x07, 0x08, // Loose Source
-        0x00, 0x00, // Padding (two octets)
-        0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload (10 bytes)
-    ];
-    let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
-    let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
-    let mut frag = Fragmenter::new();
-    frag.ipv4.repr = repr;
-    frag.ipv4.filter_options();
-    assert_ne!(repr, frag.ipv4.repr);
-    // The route record is discarded and only the loose source option persists to all fragments.
-    // Only one octet of padding is needed.
-    assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 8);
-    assert_eq!(frag.ipv4.repr.payload_len, 10);
-    assert_eq!(
-        frag.ipv4.repr.options[0..8],
-        [0x83, 0x07, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00]
-    );
-}
+    #[test]
+    fn filter_options_one_discarded_and_one_persisted_with_padding_required_of_different_length() {
+        const PACKET_BYTES: [u8; 46] = [
+            0x49, 0x21, 0x00, 0x2e, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xac, 0x9d, 0x11, 0x12, 0x13,
+            0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
+            0x07, 0x07, 0x04, 0x01, 0x02, 0x03, 0x04, // Route Record
+            0x83, 0x07, 0x04, 0x05, 0x06, 0x07, 0x08, // Loose Source
+            0x00, 0x00, // Padding (two octets)
+            0xaa, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xff, // Payload (10 bytes)
+        ];
+        let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
+        let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+        let mut frag = Fragmenter::new();
+        frag.ipv4.repr = repr;
+        assert!(frag.ipv4.filter_options().is_ok());
+        assert_ne!(repr, frag.ipv4.repr);
+        // The route record is discarded and only the loose source option persists to all fragments.
+        // Only one octet of padding is needed.
+        assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN + 8);
+        assert_eq!(frag.ipv4.repr.payload_len, 10);
+        assert_eq!(
+            frag.ipv4.repr.options[0..8],
+            [0x83, 0x07, 0x04, 0x05, 0x06, 0x07, 0x08, 0x00]
+        );
+    }
 
-#[cfg(feature = "proto-ipv4-fragmentation")]
-#[test]
-fn filter_options_total_garbage_does_not_cause_panic() {
-    const PACKET_BYTES: [u8; 70] = [
-        0x4F, 0x21, 0x00, 0x46, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xcb, 0x25, 0x11, 0x12, 0x13,
-        0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
-        0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xaa, 0x00, 0x00, 0x00, 0x00,
-        0x00, 0x00, 0x00, 0x00, 0xff, // Payload (10 bytes)
-    ];
-    let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
-    let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
-    let mut frag = Fragmenter::new();
-    frag.ipv4.repr = repr;
-    frag.ipv4.filter_options();
-    assert_eq!(frag.ipv4.repr.header_len, HEADER_LEN);
-    assert_eq!(frag.ipv4.repr.payload_len, 10);
+    #[test]
+    fn filter_options_total_garbage_does_not_cause_panic() {
+        const PACKET_BYTES: [u8; 70] = [
+            0x4F, 0x21, 0x00, 0x46, 0x01, 0x02, 0x62, 0x03, 0x1a, 0x01, 0xcb, 0x25, 0x11, 0x12, 0x13,
+            0x14, 0x21, 0x22, 0x23, 0x24, // Fixed header
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+            0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xaa, 0x00, 0x00, 0x00, 0x00,
+            0x00, 0x00, 0x00, 0x00, 0xff, // Payload (10 bytes)
+        ];
+        let mut packet = Packet::new_unchecked(&PACKET_BYTES[..]);
+        let repr = Repr::parse(&packet, &ChecksumCapabilities::default()).unwrap();
+        let mut frag = Fragmenter::new();
+        frag.ipv4.repr = repr;
+        assert!(frag.ipv4.filter_options().is_err());
+    }
 }
