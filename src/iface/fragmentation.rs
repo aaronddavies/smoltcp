@@ -12,6 +12,7 @@ use crate::wire::*;
 use crate::phy::ChecksumCapabilities;
 use crate::wire::ipv4::{ALIGNMENT_32_BITS, HEADER_LEN, MAX_OPTIONS_SIZE, Packet, Repr};
 use core::result::Result;
+use crate::iface::interface::DispatchError;
 
 // Special option type octets.
 const OPTION_TYPE_PADDING: u8 = 0x00;
@@ -450,30 +451,41 @@ impl Ipv4Fragmenter {
         (copy_behavior, length_type)
     }
 
-    pub(crate) fn filter_options(&mut self) {
+    /// Filters the original option set and stores it for use with packet fragments.
+    /// Returns Ok(()) if no error occurs during filtering. In that case, it can be assumed
+    /// that the packet can be transmitted as far as the options filtering is concerned.
+    pub(crate) fn filter_options(&mut self) -> Result<(()), DispatchError> {
         let options_len = self.repr.header_len - HEADER_LEN;
-        // Guard to have at least one properly sized option
-        if options_len < ALIGNMENT_32_BITS {
-            return;
+        // Check for a proper length. There must be enough bytes for at least one operable option.
+        if options_len < ALIGNMENT_32_BITS || !options_len.is_multiple_of(ALIGNMENT_32_BITS) || options_len > MAX_OPTIONS_SIZE {
+            return Err(DispatchError::CannotFragment);
         }
-        // Initialize read and write pointers
+        // Initialize read and write pointers.
         let source: &[u8; MAX_OPTIONS_SIZE] = &self.repr.options;
         let mut i_read: usize = 0;
         let dest: &mut [u8; MAX_OPTIONS_SIZE] = &mut [0u8; MAX_OPTIONS_SIZE];
         let mut i_write: usize = 0;
-        // Iterate through the options, always allowing for a subsequent length octet to be read.
-        while i_read + 1 < options_len {
+        // Iterate through the options.
+        while i_read < options_len {
             // Parse the type octet to get our instructions for this option.
             let type_octet = source[i_read];
             let (copy_behavior, length_type) = Self::parse_option_type_octet(type_octet);
             if length_type == OptionLengthType::HasLength {
+                // Nothing prevents defining an option that has a length octet with a value that indicates zero length data,
+                // so we allow for the presence of a length octet prior to the last octet.
+                if i_read + 1 >= options_len {
+                    // This is the last octet, and there is no more room for a length octet.
+                    return Err(DispatchError::CannotFragment);
+                }
                 // Parse the length octet.
                 let length = source[i_read + 1] as usize;
                 // Safely copy the option based on its length.
                 if copy_behavior == OptionCopyBehavior::Copy
-                    && i_write + length <= dest.len()
-                    && i_read + length <= source.len()
                 {
+                    // Prevent a length from overflowing the end.
+                    if i_write + length > dest.len() || i_read + length > source.len() {
+                        return Err(DispatchError::CannotFragment);
+                    }
                     dest[i_write..i_write + length]
                         .copy_from_slice(&source[i_read..i_read + length]);
                     // Advance the write pointer.
@@ -497,8 +509,11 @@ impl Ipv4Fragmenter {
             dest[i_write] = OPTION_TYPE_PADDING;
             i_write += 1;
         }
-        // Write the new option set.
-        self.repr.set_options(&dest[..i_write]);
+        // Apply the filtered options.
+        match self.repr.set_options(dest.as_slice()) {
+            Err(_) => Err(DispatchError::CannotFragment),
+            Ok(()) => Ok(()),
+        }
     }
 }
 

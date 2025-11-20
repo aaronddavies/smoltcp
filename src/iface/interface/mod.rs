@@ -1343,6 +1343,12 @@ impl InterfaceInner {
                         // Emit the IP header to the buffer.
                         emit_ip(&ip_repr, &mut frag.buffer);
 
+                        // Verify that we can filter the options for the subsequent packets.
+                        if let Err(_) = frag.ipv4.filter_options() {
+                            net_debug!("Could not fragment packet. Dropping.");
+                            return Ok(());
+                        };
+
                         let mut ipv4_packet = Ipv4Packet::new_unchecked(&mut frag.buffer[..]);
                         frag.ipv4.ident = ipv4_id;
                         ipv4_packet.set_ident(ipv4_id);
@@ -1364,9 +1370,6 @@ impl InterfaceInner {
 
                             // Change the offset for the next packet.
                             frag.ipv4.frag_offset = (first_frag_ip_len - ip_header_len) as u16;
-
-                            // Filter the options for the remaining packets.
-                            frag.ipv4.filter_options();
 
                             // Copy the IP header and the payload.
                             tx_buffer[..first_frag_ip_len]
@@ -1437,4 +1440,6 @@ pub enum DispatchError {
     Exhausted,
     /// The destination is not addressable on this network interface.
     Unaddressable,
+    /// The packet must be fragmented but there was a parse error.
+    CannotFragment,
 }
