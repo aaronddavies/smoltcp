@@ -1557,7 +1557,9 @@ fn test_raw_socket_tx_fragmentation_with_options() {
             let result = f(&mut buffer[..len]);
             let option_end = IPV4_HEADER_LEN + OPTIONS_BYTES.len();
             assert_eq!(buffer[IPV4_HEADER_LEN..option_end], OPTIONS_BYTES);
-            assert!((len - option_end).is_multiple_of(IPV4_FRAGMENT_PAYLOAD_ALIGNMENT));
+            // Verify the payload size is aligned.
+            let payload_size = len - option_end;
+            assert!(payload_size.is_multiple_of(IPV4_FRAGMENT_PAYLOAD_ALIGNMENT));
             result
         }
     }
@@ -1590,11 +1592,22 @@ fn test_raw_socket_tx_fragmentation_with_options() {
     );
     assert!(result.is_ok());
 
-    for _ in 0..2 {
-        iface
-            .inner
-            .dispatch_ipv4_frag(TestSubsequentFragmentTxToken {}, &mut iface.fragmenter);
-    }
+    // Verify that the fragment offset is correct.
+    let unaligned_length = mtu - IPV4_HEADER_LEN - OPTIONS_BYTES.len();
+    // This check ensures a valid test in which we actually do adjust for alignment.
+    assert!(!unaligned_length.is_multiple_of(IPV4_FRAGMENT_PAYLOAD_ALIGNMENT));
+    let remainder = unaligned_length % IPV4_FRAGMENT_PAYLOAD_ALIGNMENT;
+    let expected_fragment_offset = mtu - IPV4_HEADER_LEN - OPTIONS_BYTES.len() - remainder;
+    let frag_offset = iface.fragmenter.ipv4.frag_offset;
+    assert_eq!(frag_offset as usize, expected_fragment_offset);
+
+    iface
+        .inner
+        .dispatch_ipv4_frag(TestSubsequentFragmentTxToken {}, &mut iface.fragmenter);
+
+    // The fragment offset should be the complete payload length once transmission is complete.
+    let frag_offset = iface.fragmenter.ipv4.frag_offset;
+    assert_eq!(frag_offset as usize, payload_len);
 }
 
 #[rstest]
