@@ -2,13 +2,13 @@ mod utils;
 
 use log::debug;
 use std::os::unix::io::AsRawFd;
-use std::str::{self, FromStr};
+use std::str::FromStr;
 
 use smoltcp::iface::{Config, Interface, SocketSet};
-use smoltcp::phy::{Device, Medium, wait as phy_wait};
-use smoltcp::socket::tcp;
+use smoltcp::phy::{Device, Medium, wait as phy_wait, ChecksumCapabilities};
+use smoltcp::socket::icmp;
 use smoltcp::time::Instant;
-use smoltcp::wire::{EthernetAddress, IpAddress, IpCidr, Ipv4Address, Ipv6Address};
+use smoltcp::wire::{EthernetAddress, Icmpv4Packet, Icmpv4Repr, IpAddress, IpCidr};
 
 fn main() {
     utils::setup_logging("");
@@ -16,8 +16,8 @@ fn main() {
     let (mut opts, mut free) = utils::create_options();
     utils::add_tuntap_options(&mut opts, &mut free);
     utils::add_middleware_options(&mut opts, &mut free);
-    free.push("ADDRESS");
-    free.push("PORT");
+    free.push("CLIENT_ADDRESS");
+    free.push("SERVER_ADDRESS");
 
     let mut matches = utils::parse_options(&opts, free);
     let device = utils::parse_tuntap_options(&mut matches);
@@ -25,8 +25,8 @@ fn main() {
     let fd = device.as_raw_fd();
     let mut device =
         utils::parse_middleware_options(&mut matches, device, /*loopback=*/ false);
-    let address = IpAddress::from_str(&matches.free[0]).expect("invalid address format");
-    let port = u16::from_str(&matches.free[1]).expect("invalid port format");
+    let client_address = IpAddress::from_str(&matches.free[0]).expect("invalid address format");
+    let server_address = IpAddress::from_str(&matches.free[1]).expect("invalid address format");
 
     // Create interface
     let mut config = match device.capabilities().medium {
@@ -41,76 +41,46 @@ fn main() {
     let mut iface = Interface::new(config, &mut device, Instant::now());
     iface.update_ip_addrs(|ip_addrs| {
         ip_addrs
-            .push(IpCidr::new(IpAddress::v4(192, 168, 69, 1), 24))
-            .unwrap();
-        ip_addrs
-            .push(IpCidr::new(IpAddress::v6(0xfdaa, 0, 0, 0, 0, 0, 0, 1), 64))
-            .unwrap();
-        ip_addrs
-            .push(IpCidr::new(IpAddress::v6(0xfe80, 0, 0, 0, 0, 0, 0, 1), 64))
+            .push(IpCidr::new(client_address, 24))
             .unwrap();
     });
-    iface
-        .routes_mut()
-        .add_default_ipv4_route(Ipv4Address::new(192, 168, 69, 100))
-        .unwrap();
-    iface
-        .routes_mut()
-        .add_default_ipv6_route(Ipv6Address::new(0xfe80, 0, 0, 0, 0, 0, 0, 0x100))
-        .unwrap();
 
     // Create sockets
-    let tcp_rx_buffer = tcp::SocketBuffer::new(vec![0; 1500]);
-    let tcp_tx_buffer = tcp::SocketBuffer::new(vec![0; 1500]);
-    let tcp_socket = tcp::Socket::new(tcp_rx_buffer, tcp_tx_buffer);
+    let rx_buffer = icmp::PacketBuffer::new(vec![icmp::PacketMetadata::EMPTY], vec![0; 2048]);
+    let tx_buffer = icmp::PacketBuffer::new(vec![icmp::PacketMetadata::EMPTY], vec![0; 2048]);
+    let socket = icmp::Socket::new(rx_buffer, tx_buffer);
     let mut sockets = SocketSet::new(vec![]);
-    let tcp_handle = sockets.add(tcp_socket);
+    let handle = sockets.add(socket);
 
-    let socket = sockets.get_mut::<tcp::Socket>(tcp_handle);
-    socket
-        .connect(iface.context(), (address, port), 49500)
-        .unwrap();
+    // Bind socket ID
+    let socket = sockets.get_mut::<icmp::Socket>(handle);
+    let ident = 0x1234;
+    assert_eq!(socket.bind(icmp::Endpoint::Ident(ident)), Ok(()));
 
-    let mut tcp_active = false;
+    // Send echo request
+    let icmp_repr = Icmpv4Repr::EchoRequest {
+        ident,
+        seq_no: 1,
+        data: &[0xde, 0xad, 0xbe, 0xef], // arbitrary data payload
+    };
+    let mut bytes = [0xff; 12];
+    let mut packet = Icmpv4Packet::new_unchecked(&mut bytes);
+    icmp_repr.emit(&mut packet, &ChecksumCapabilities::default());
+
+    match socket.send_slice(packet.into_inner(), server_address) {
+        Ok(()) => debug!("Queued slice."),
+        Err(err) => debug!("Error queueing slice: {}", err),
+    };
+
     loop {
         let timestamp = Instant::now();
         iface.poll(timestamp, &mut device, &mut sockets);
 
-        let socket = sockets.get_mut::<tcp::Socket>(tcp_handle);
-        if socket.is_active() && !tcp_active {
-            debug!("connected");
-        } else if !socket.is_active() && tcp_active {
-            debug!("disconnected");
-            break;
-        }
-        tcp_active = socket.is_active();
+        let socket = sockets.get_mut::<icmp::Socket>(handle);
 
-        if socket.may_recv() {
-            let data = socket
-                .recv(|data| {
-                    let mut data = data.to_owned();
-                    if !data.is_empty() {
-                        debug!(
-                            "recv data: {:?}",
-                            str::from_utf8(data.as_ref()).unwrap_or("(invalid utf8)")
-                        );
-                        data = data.split(|&b| b == b'\n').collect::<Vec<_>>().concat();
-                        data.reverse();
-                        data.extend(b"\n");
-                    }
-                    (data.len(), data)
-                })
-                .unwrap();
-            if socket.can_send() && !data.is_empty() {
-                debug!(
-                    "send data: {:?}",
-                    str::from_utf8(data.as_ref()).unwrap_or("(invalid utf8)")
-                );
-                socket.send_slice(&data[..]).unwrap();
-            }
-        } else if socket.may_send() {
-            debug!("close");
-            socket.close();
+        if socket.can_recv() {
+            let (icmp_reply, dest_addr) = socket.recv().unwrap();
+            debug!("Received to {:x?} ICMPv4 packet {:x?}", dest_addr, icmp_reply);
         }
 
         phy_wait(fd, iface.poll_delay(timestamp, &sockets)).expect("wait error");
