@@ -7,7 +7,7 @@ use std::str::FromStr;
 use smoltcp::iface::{Config, Interface, SocketSet};
 use smoltcp::phy::{Device, Medium, wait as phy_wait, ChecksumCapabilities};
 use smoltcp::socket::icmp;
-use smoltcp::time::Instant;
+use smoltcp::time::{Duration, Instant};
 use smoltcp::wire::{EthernetAddress, Icmpv4Packet, Icmpv4Repr, IpAddress, IpCidr};
 
 fn main() {
@@ -67,12 +67,16 @@ fn main() {
     let mut packet = Icmpv4Packet::new_unchecked(&mut bytes);
     icmp_repr.emit(&mut packet, &ChecksumCapabilities::default());
 
-    match socket.send_slice(packet.into_inner(), server_address) {
-        Ok(()) => debug!("Queued slice."),
-        Err(err) => debug!("Error queueing slice: {}", err),
-    };
-
     loop {
+        let socket = sockets.get_mut::<icmp::Socket>(handle);
+
+        match socket.send_slice(bytes.as_slice(), server_address) {
+            Ok(()) => debug!("Queued slice."),
+            Err(err) => debug!("Error queueing slice: {}", err),
+        };
+
+        phy_wait(fd, Some(Duration::from_millis(1000))).expect("wait error");//iface.poll_delay(timestamp, &sockets)).expect("wait error");
+
         let timestamp = Instant::now();
         iface.poll(timestamp, &mut device, &mut sockets);
 
@@ -82,7 +86,5 @@ fn main() {
             let (icmp_reply, dest_addr) = socket.recv().unwrap();
             debug!("Received to {:x?} ICMPv4 packet {:x?}", dest_addr, icmp_reply);
         }
-
-        phy_wait(fd, iface.poll_delay(timestamp, &sockets)).expect("wait error");
     }
 }
