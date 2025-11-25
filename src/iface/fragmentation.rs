@@ -453,7 +453,7 @@ impl Ipv4Fragmenter {
 
     /// Filters the original option set and overwrites it in the repr for use with subsequent packet fragments.
     /// Returns Ok(()) if no error occurs during filtering.
-    pub(crate) fn filter_options(&mut self) -> Result<(()), DispatchError> {
+    pub(crate) fn filter_options(&mut self) -> Result<(), DispatchError> {
         let options_len = self.repr.header_len - HEADER_LEN;
         // Exit nicely if no options are present, there is just nothing to filter.
         if options_len == 0 {
@@ -476,38 +476,40 @@ impl Ipv4Fragmenter {
             // Parse the type octet to get our instructions for this option.
             let type_octet = source[i_read];
             let (copy_behavior, length_type) = Self::parse_option_type_octet(type_octet);
-            if length_type == OptionLengthType::HasLength {
-                // Nothing prevents defining an option that has a length octet with a value that indicates zero length data,
-                // so we allow for the presence of a length octet prior to the last octet.
-                if i_read + 1 >= options_len {
-                    // This is the last octet, and there is no more room for a length octet.
-                    return Err(DispatchError::CannotFragment);
-                }
-                // Parse the length octet.
-                let length = source[i_read + 1] as usize;
-                // Safely copy the option based on its length.
-                if copy_behavior == OptionCopyBehavior::Copy {
-                    // Prevent a length from overflowing the end.
-                    if i_write + length > dest.len() || i_read + length > source.len() {
+            match length_type {
+                OptionLengthType::HasLength => {
+                    // Nothing prevents defining an option that has a length octet with a value that indicates zero length data,
+                    // so we allow for the presence of a length octet prior to the last octet.
+                    if i_read + 1 >= options_len {
+                        // This is the last octet, and there is no more room for a length octet.
                         return Err(DispatchError::CannotFragment);
                     }
-                    dest[i_write..i_write + length]
-                        .copy_from_slice(&source[i_read..i_read + length]);
-                    // Advance the write pointer.
-                    i_write += length;
+                    // Parse the length octet.
+                    let length = source[i_read + 1] as usize;
+                    // Safely copy the option based on its length.
+                    if copy_behavior == OptionCopyBehavior::Copy {
+                        // Prevent a length from overflowing the end.
+                        if i_write + length > dest.len() || i_read + length > source.len() {
+                            return Err(DispatchError::CannotFragment);
+                        }
+                        dest[i_write..i_write + length]
+                            .copy_from_slice(&source[i_read..i_read + length]);
+                        // Advance the write pointer.
+                        i_write += length;
+                    }
+                    // Advance the read pointer.
+                    i_read += length;
                 }
-                // Advance the read pointer.
-                i_read += length;
-            } else {
-                // Advance past any single octets. They are not operable option bytes.
-                // Only option types 0 and 1 have the length bit unset. All other option types have the
-                // length bit set, and therefore no operable option types can have both the copy bit set
-                // and the length bit unset. See the IANA option number list at:
-                // https://www.iana.org/assignments/ip-parameters/ip-parameters.xhtml#ip-parameters-1
-                i_read += 1;
+                OptionLengthType::NoLength => {
+                    // Advance past any single octets. They are not operable option bytes.
+                    // Padding is inserted once the writing of all options is complete.
+                    // Only option types 0x0 and 0x1 have the length bit unset. All other option types have the
+                    // length bit set. Therefore, no operable option types have both the copy bit set
+                    // and the length bit unset. See the IANA option number list at:
+                    // https://www.iana.org/assignments/ip-parameters/ip-parameters.xhtml#ip-parameters-1
+                    i_read += 1;
+                }
             }
-            // Options without a length octet indicate padding. Padding is inserted once the writing
-            // of the options is complete. Therefore, it is never directly copied from the reading.
         }
         // If necessary, safely pad the remainder of the alignment in the destination.
         while i_write % ALIGNMENT_32_BITS != 0 && i_write < MAX_OPTIONS_SIZE {
@@ -515,10 +517,9 @@ impl Ipv4Fragmenter {
             i_write += 1;
         }
         // Apply the filtered options.
-        match self.repr.set_options(&dest[..i_write]) {
-            Err(_) => Err(DispatchError::CannotFragment),
-            Ok(()) => Ok(()),
-        }
+        self.repr
+            .set_options(&dest[..i_write])
+            .map_err(|_| DispatchError::CannotFragment)
     }
 }
 
