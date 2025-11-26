@@ -1601,9 +1601,11 @@ fn test_raw_socket_tx_fragmentation_with_options() {
     let frag_offset = iface.fragmenter.ipv4.frag_offset;
     assert_eq!(frag_offset as usize, expected_fragment_offset);
 
-    iface
-        .inner
-        .dispatch_ipv4_frag(TestSubsequentFragmentTxToken {}, &mut iface.fragmenter);
+    for _ in 0..2 {
+        iface
+            .inner
+            .dispatch_ipv4_frag(TestSubsequentFragmentTxToken {}, &mut iface.fragmenter);
+    }
 
     // The fragment offset should be the complete payload length once transmission is complete.
     let frag_offset = iface.fragmenter.ipv4.frag_offset;
