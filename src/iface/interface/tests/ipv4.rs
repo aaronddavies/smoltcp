@@ -1342,7 +1342,7 @@ fn test_raw_socket_tx_with_bad_option() {
     // Form the packet to be sent.
 
     let packet_size = mtu * 5 / 4; // Larger than MTU, requires fragment
-    let payload_len = packet_size - IPV4_HEADER_LEN as usize;
+    let payload_len = packet_size - IPV4_HEADER_LEN;
     let payload = vec![0xa5u8; payload_len];
 
     let mut ip_repr = Ipv4Repr {
@@ -1502,7 +1502,7 @@ fn test_raw_socket_tx_fragmentation_with_options() {
     // Form the packet to be sent.
 
     let packet_size = mtu * 9 / 4; // Larger than MTU, requires two fragments
-    let payload_len = packet_size - IPV4_HEADER_LEN as usize;
+    let payload_len = packet_size - IPV4_HEADER_LEN;
     let payload = vec![0xa5u8; payload_len];
 
     let mut ip_repr = Ipv4Repr {
