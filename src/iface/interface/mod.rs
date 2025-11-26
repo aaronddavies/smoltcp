@@ -1352,7 +1352,7 @@ impl InterfaceInner {
                         emit_ip(&ip_repr, &mut frag.buffer);
 
                         // Verify that we can filter the options for the subsequent packets.
-                        if let Err(_) = frag.ipv4.filter_options() {
+                        if frag.ipv4.filter_options().is_err() {
                             net_debug!(
                                 "Could not fragment packet because options cannot be filtered. Dropping."
                             );
